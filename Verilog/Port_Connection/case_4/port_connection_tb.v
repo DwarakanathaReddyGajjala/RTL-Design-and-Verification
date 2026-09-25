@@ -15,8 +15,8 @@ module port_connection_tb;
 
   port_connection inst (.a_in   (a_1),
                         .b_in   (b_1),
-                        .c_out  (c),
-                        .d_out  (d));
+                        .c_out  ( c ),
+                        .d_out  ( d ));
     /*
     #0 is used to avoid the race condition between the display statement
     (Active region) and the design assignment statement (Active region), 
