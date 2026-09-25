@@ -2,6 +2,30 @@
 module demux_1x8 (input        in ,
                   input  [2:0] sel,
                   output [7:0] out);
+
+ /*
+  ============================================================
+                       DEMULTIPLEXER (DEMUX)
+  ============================================================
+
+  A DEMUX is a combinational circuit that takes a single input
+  and routes it to one of multiple outputs. The selected output
+  is controlled by select lines.
+
+  Real-Life Analogies:
+
+  1. Railway Track Switching:
+     A railway track switch receives a train from one track and
+     directs it to one of multiple tracks based on the selected
+     route.
+
+  2. Water Distribution:
+     A water supply system receives water from a common source
+     and directs it to one of multiple pipelines or destinations
+     based on the selected path.
+
+  ============================================================
+*/
   
 // // 1.dataflow modelling(boolean expression using truth table)..contioues assignment
 //   assign out[0] = ~sel[2] & ~sel[1] & ~sel[0] & in;
