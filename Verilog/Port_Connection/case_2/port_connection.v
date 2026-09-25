@@ -1,5 +1,5 @@
 // Code your design here
-module port_connection(input  [2:0] a_in,b_in,
+module port_connection(input      [2:0] a_in ,b_in,
                        output reg [2:0] c_out,d_out);
   
 
