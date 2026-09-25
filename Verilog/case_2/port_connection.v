@@ -4,13 +4,18 @@ module port_connection(input  [2:0] a_in,b_in,
   
 
 /*
+  An initial block executes only once during simulation. Even if new
+  input stimulus is applied from the testbench at a later time, the
+  design initial block will not execute again to respond to those
+  input changes.
+
   Using an initial block in the design can cause a race condition
   between the testbench initial block and the design initial block,
   because both execute in the Active region.
 
-  Using always @(*) in the design avoids this race condition because
-  the block is event-driven and is triggered when its input signals
-  change after the testbench updates them.
+  The always @(*) block is event-driven and can execute multiple times
+  whenever its input signals change. Therefore, it responds to every
+  new input stimulus from the testbench.
 */
   
 //   initial begin 
