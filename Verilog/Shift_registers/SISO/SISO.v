@@ -67,7 +67,11 @@ module SISO(input       in,clk, rst,
       w3  <= 0;
       out <= 0;
     end 
-    else begin   
+    else begin 
+      $display($time,"display:enter the else block",); 
+      $monitor($time,"monitor:enter the else block in=%0d,w1=%0d,w2=%0d,w3=%0d,out=%0d",in,w1,w2,w3,out); 
+      $strobe($time,"strobe:enter the else block in=%0d,w1=%0d,w2=%0d,w3=%0d,out=%0d",in,w1,w2,w3,out); 
+      $display($time,"display:enter the else block in=%0d,w1=%0d,w2=%0d,w3=%0d,out=%0d",in,w1,w2,w3,out); 
       w1  <=  in;
       w2  <=  w1;
       w3  <=  w2;
