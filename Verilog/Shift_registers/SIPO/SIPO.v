@@ -5,7 +5,7 @@ module SIPO(input       in,clk, rst,
   
   /*
   ============================================================
-              SIPO SHIFT REGISTER — BEHAVIORAL MODELING
+              SIPO SHIFT REGISTER — (Right shift)
   ============================================================
 
   - A SIPO (Serial-In Parallel-Out) shift register accepts
@@ -24,17 +24,17 @@ module SIPO(input       in,clk, rst,
   - Non-blocking assignments are used to model the
     simultaneous update of the register bits at the
     active clock edge.
-
+     in-->out3--->out2-->out1-->out0
   ============================================================
 */
   always @ (posedge clk)  
     if (rst)  
       out <= 0;
     else begin   
-       out[0] <=  in    ;
-       out[1] <=  out[0];
-       out[2] <=  out[1];
-       out[3] <=  out[2];
+       out[3] <=  in    ;
+       out[2] <=  out[3];
+       out[1] <=  out[2];
+       out[0] <=  out[1];
      end 
   
 endmodule
