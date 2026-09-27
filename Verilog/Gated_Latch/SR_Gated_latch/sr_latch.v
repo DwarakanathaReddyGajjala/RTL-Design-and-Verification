@@ -6,11 +6,14 @@ module sr_latch(input      s,r,
    NORMAL LATCH
    ============================================================
 
-   - A normal latch directly responds to changes in its input
-     according to its enable/level-control condition.
+   - A normal latch is a level-sensitive storage element.
 
-   - Without a dedicated gating stage, the input can directly
-     reach the storage element whenever the latch is enabled.
+   - It directly responds to changes in its input while
+     maintaining its stored value when required.
+
+   - Since there is no separate enable control, the latch
+     continuously operates according to its level-sensitive
+     behavior.
 
    ============================================================
 */
