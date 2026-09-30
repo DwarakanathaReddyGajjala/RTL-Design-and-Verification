@@ -1,0 +1,179 @@
+// Code your testbench here
+// or browse Examples
+
+
+/*
+  ============================================================
+                    CLASS INHERITANCE
+  ============================================================
+
+  - Inheritance allows a child class to derive properties and
+    methods from a parent class.
+
+  - The child class is created using the extends keyword.
+
+        class child extends parent;
+
+  - The child class can use the properties and methods of the
+    parent class.
+
+  - The child class can also define its own properties and
+    methods.
+
+  - A child class can define a property or method with the
+    same name as the parent class.
+
+  - A child class object and a parent class object are
+    different objects when they are separately created using
+    new().
+
+  ============================================================
+*/
+
+
+class parent;
+  int a = 50;
+  function void display();
+    $display("This is parent class");
+  endfunction
+endclass
+
+
+
+/*
+  ============================================================
+              CODE 1 — PROPERTY AND METHOD REDEFINITION
+  ============================================================
+
+  - The child class extends the parent class.
+
+  - The child class defines its own property a.
+
+  - Therefore, the child object has its own a property, while
+    the parent object has its own a property.
+
+  - The child class also defines its own display() method.
+
+  - Therefore, child_h.display() calls the child class method.
+
+  - parent_h.display() calls the parent class method.
+
+  - parent_h and child_h are separately created objects, so
+    they refer to different objects.
+
+  ============================================================
+*/
+
+
+// class child extends parent;//code1
+//   int a = 60;
+//   function void display();
+//     $display("This is child class");
+//   endfunction
+// endclass
+
+
+
+/*
+  ============================================================
+              CODE 2 — PROPERTY REDEFINITION
+                       METHOD INHERITED
+  ============================================================
+
+  - The child class extends the parent class.
+
+  - The child class defines its own property a.
+
+  - Therefore, the child object has its own a property.
+
+  - The child class does not define display().
+
+  - Therefore, display() is inherited from the parent class.
+
+  - The child object can directly access the inherited
+    display() method.
+
+  ============================================================
+*/
+
+
+// class child extends parent;//code2
+//   int a = 60;
+// endclass
+
+
+
+
+/*
+  ============================================================
+              CODE 3 — METHOD REDEFINITION
+                       PROPERTY INHERITED
+  ============================================================
+
+  - The child class extends the parent class.
+
+  - The child class does not define its own property a.
+
+  - Therefore, a is inherited from the parent class.
+
+  - The child class defines its own display() method.
+
+  - Therefore, child_h.display() calls the child class method.
+
+  - The parent object's display() still calls the parent
+    class method.
+
+  ============================================================
+*/
+
+
+// class child extends parent;//code3
+//   function void display();
+//     $display("This is child class");
+//   endfunction
+// endclass
+
+
+
+
+/*
+  ============================================================
+              CODE 4 — COMPLETE INHERITANCE
+  ============================================================
+
+  - The child class extends the parent class without defining
+    any new property or method.
+
+  - Therefore, the child inherits the property a from the
+    parent class.
+
+  - The child also inherits the display() method from the
+    parent class.
+
+  - child_h can therefore access both a and display().
+
+  - The child class can use the parent class members without
+    redefining them.
+
+  ============================================================
+*/
+
+
+class child extends parent;//code4
+endclass
+
+module class_inheritance;
+  parent parent_h;
+  child  child_h;
+
+  initial begin
+    parent_h = new();
+    child_h  = new();
+    $display("child.a=%0d,parent_h.a=%0d",child_h.a,parent_h.a);
+    child_h.a  = 10;
+    parent_h.a = 20;
+    $display("child.a=%0d,parent_h.a=%0d",child_h.a,parent_h.a);
+    child_h.display();
+    parent_h.display();
+  end
+endmodule
