@@ -198,7 +198,7 @@ class child extends parent;
   endfunction
 endclass
 
-module dynamic_casting_ex3_tb;
+module upcasting_tb;
   parent parent_h;
   child child_h;
   
