@@ -204,11 +204,7 @@ module dynamic_casting_ex3_tb;
   
   initial begin 
     child_h = new();
-//     parent_h = new();
-    parent_h = child_h;
-//     $cast(parent_h,child_h);
-//     child_h = parent_h;
-    $cast(child_h,parent_h);
+    parent_h = child_h;//$cast(parent_h,child_h); both represents same
     parent_h.display();
     child_h.display();
   end 
