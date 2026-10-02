@@ -77,7 +77,7 @@
 
 
 
-// module event_control_ex;//code1a
+// module event_control_tb;//code1a
 //   reg  [1:0]  a ;
 //   reg        clk;
 //   wire [1:0]   y;
@@ -108,7 +108,7 @@
 
 
 
-// module event_control_ex;//code1b
+// module event_control_tb1;//code1b
 //   reg  [1:0]  a ;
 //   reg        clk;
 //   wire [1:0]   y;
@@ -139,7 +139,7 @@
 
 
 
-// module event_control_ex;//code1c
+// module event_control_tb2;//code1c
 //   reg  [1:0]  a ;
 //   reg        clk;
 //   wire [1:0]   y;
@@ -169,7 +169,7 @@
 // endmodule 
 
 
-module event_control_ex;//code1d
+module event_control_tb3;//code1d
   reg  [1:0]  a ;
   reg        clk;
   wire [1:0]   y;
