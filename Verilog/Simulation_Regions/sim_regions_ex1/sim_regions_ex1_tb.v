@@ -3,7 +3,7 @@ module sim_regions_ex1_tb;
   reg  [9:0] a;
   wire [9:0] b;
   
-  test dut (clk,a,b);
+  my_design dut (clk,a,b);
   
   always #5 clk =~clk;
   
