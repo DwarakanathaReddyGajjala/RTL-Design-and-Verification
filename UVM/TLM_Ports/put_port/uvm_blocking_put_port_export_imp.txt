@@ -1,0 +1,630 @@
+/*
+  ============================================================
+             UVM BLOCKING PUT PORT, EXPORT AND IMP
+  ============================================================
+
+  UVM TLM provides a way for UVM components to communicate
+  with each other by transferring transaction objects.
+
+  In this example, we are using the blocking put mechanism.
+
+  The three important TLM components are:
+
+    1. uvm_blocking_put_port
+    2. uvm_blocking_put_export
+    3. uvm_blocking_put_imp
+
+
+  ============================================================
+  1. BLOCKING PUT
+  ============================================================
+
+  Blocking put is used to send a transaction using the:
+
+    put()
+
+  method.
+
+  Example:
+
+    producer.put(seq_item_h);
+
+  The transaction is passed from one component to another
+  through the connected TLM interfaces.
+
+  The put() method is a task, so it is a blocking operation.
+
+
+  ============================================================
+  2. BLOCKING PUT PORT
+  ============================================================
+
+  Declaration:
+
+    uvm_blocking_put_port #(seq_item) producer;
+
+  The blocking put port is used by the component that calls
+  the put() method.
+
+  In our example:
+
+    compa → uses the producer port.
+
+  The port is created in build_phase:
+
+    producer = new("producer", this);
+
+  The transaction is sent using:
+
+    producer.put(seq_item_h);
+
+
+  Therefore:
+
+    PORT → used to call put()
+
+
+  ============================================================
+  3. BLOCKING PUT EXPORT
+  ============================================================
+
+  Declaration:
+
+    uvm_blocking_put_export #(seq_item) export_port;
+
+  An export is used when the TLM connection needs to pass
+  through another component.
+
+  In our example:
+
+    compc contains compb.
+
+  The export is present in compc:
+
+    export_port = new("export_port", this);
+
+  It is connected to compb's implementation:
+
+    export_port.connect(compb_h.consumer);
+
+
+  Therefore:
+
+    EXPORT → passes the TLM connection to another level
+
+
+  ============================================================
+  4. BLOCKING PUT IMPLEMENTATION
+  ============================================================
+
+  Declaration:
+
+    uvm_blocking_put_imp #(seq_item, compb) consumer;
+
+  The implementation port is connected to the component that
+  contains the actual put() method.
+
+  In our example:
+
+    compb contains:
+
+      uvm_blocking_put_imp #(seq_item, compb) consumer;
+
+  And compb implements:
+
+    task put(seq_item seq_item_h);
+
+      ...
+
+    endtask
+
+
+  Therefore:
+
+    IMP → connects the TLM interface to the put() method
+
+
+  ============================================================
+  5. ROLE OF EACH ONE
+  ============================================================
+
+    PORT
+      ↓
+    Calls put()
+
+    EXPORT
+      ↓
+    Passes the connection to another level
+
+    IMP
+      ↓
+    Connects to the actual put() implementation
+
+
+  Simple way to remember:
+
+    PORT   → CALL
+    EXPORT → PASS
+    IMP    → IMPLEMENT
+
+
+  ============================================================
+  6. CONNECTION IN OUR EXAMPLE
+  ============================================================
+
+  Our testbench has:
+
+    compa
+      |
+      | producer
+      ↓
+    compc
+      |
+      | export_port
+      ↓
+    compb
+      |
+      | consumer
+      ↓
+    put()
+
+
+  The first connection is made in test:
+
+    compa_h.producer.connect(compc_h.export_port);
+
+
+  This connects:
+
+    PORT → EXPORT
+
+
+  The second connection is made inside compc:
+
+    export_port.connect(compb_h.consumer);
+
+
+  This connects:
+
+    EXPORT → IMP
+
+
+  Therefore the complete connection is:
+
+    PORT → EXPORT → IMP
+
+
+  ============================================================
+  7. TRANSACTION FLOW
+  ============================================================
+
+  In compa:
+
+    seq_item_h.data = 64;
+    seq_item_h.addr = 128;
+
+    producer.put(seq_item_h);
+
+
+  The transaction then travels through:
+
+    compa
+      ↓
+    producer
+      ↓
+    export_port
+      ↓
+    consumer
+      ↓
+    compb.put()
+
+
+  Finally, the put() method in compb receives the transaction:
+
+    task put(seq_item seq_item_h);
+
+      seq_item_h.print();
+
+    endtask
+
+
+  ============================================================
+  8. WHY DO WE NEED AN EXPORT?
+  ============================================================
+
+  Consider our hierarchy:
+
+    test
+     |
+     +---- compa
+     |
+     +---- compc
+             |
+             +---- compb
+
+
+  compa needs to communicate with compb.
+
+  But compb is inside compc.
+
+  Therefore, compc provides an export:
+
+    compc.export_port
+
+  The connection becomes:
+
+    compa
+      |
+      | PORT
+      ↓
+    compc
+      |
+      | EXPORT
+      ↓
+    compb
+      |
+      | IMP
+      ↓
+    put()
+
+
+  The export allows the TLM connection to pass through compc.
+
+
+  ============================================================
+  9. PORT TO IMP
+  ============================================================
+
+  If the receiving component is directly available, an export
+  may not be required.
+
+  Example:
+
+    compa
+      |
+      | PORT
+      ↓
+    compb
+      |
+      | IMP
+      ↓
+    put()
+
+
+  Connection:
+
+    compa_h.producer.connect(compb_h.consumer);
+
+
+  Therefore:
+
+    PORT → IMP
+
+
+  ============================================================
+  10. PORT TO EXPORT TO IMP
+  ============================================================
+
+  If the implementation is inside another component:
+
+    compa
+      |
+      | PORT
+      ↓
+    compc
+      |
+      | EXPORT
+      ↓
+    compb
+      |
+      | IMP
+      ↓
+    put()
+
+
+  Connections:
+
+    compa_h.producer.connect(compc_h.export_port);
+
+    compc_h.export_port.connect(compb_h.consumer);
+
+
+  Therefore:
+
+    PORT → EXPORT → IMP
+
+
+  ============================================================
+  11. MORE THAN ONE EXPORT
+  ============================================================
+
+  If there are more hierarchy levels between the port and
+  the final implementation, more exports can be used.
+
+  Example:
+
+    PORT
+      ↓
+    PORT
+      ↓
+    EXPORT
+      ↓
+    EXPORT
+      ↓
+    IMP
+      ↓
+    put()
+
+
+  The important idea is:
+
+    EXPORT can pass the TLM connection to another level.
+
+
+  ============================================================
+  12. PORT vs EXPORT vs IMP
+  ============================================================
+
+    +----------+---------------------------------------------+
+    | Type     | Purpose                                     |
+    +----------+---------------------------------------------+
+    | PORT     | Used to call put()                          |
+    | EXPORT   | Passes the TLM connection to another level  |
+    | IMP      | Connects to the actual put() implementation |
+    +----------+---------------------------------------------+
+
+
+  Simple memory:
+
+    PORT   → CALL
+    EXPORT → PASS
+    IMP    → IMPLEMENT
+
+
+  ============================================================
+  13. DECLARATION vs INSTANTIATION
+  ============================================================
+
+  Port declaration:
+
+    uvm_blocking_put_port #(seq_item) producer;
+
+  Port instantiation:
+
+    producer = new("producer", this);
+
+
+  Export declaration:
+
+    uvm_blocking_put_export #(seq_item) export_port;
+
+  Export instantiation:
+
+    export_port = new("export_port", this);
+
+
+  Imp declaration:
+
+    uvm_blocking_put_imp #(seq_item, compb) consumer;
+
+  Imp instantiation:
+
+    consumer = new("consumer", this);
+
+
+  Declaration tells us which TLM interface is being used.
+
+  Instantiation creates the TLM object.
+
+
+  ============================================================
+  14. WHY IS THE SECOND PARAMETER USED IN IMP?
+  ============================================================
+
+  Example:
+
+    uvm_blocking_put_imp #(seq_item, compb) consumer;
+
+
+  There are two parameters:
+
+    seq_item
+        ↓
+    Transaction type
+
+    compb
+        ↓
+    Class that implements put()
+
+
+  Therefore compb must provide:
+
+    task put(seq_item seq_item_h);
+
+
+  ============================================================
+  15. CONNECTIONS ARE MADE IN connect_phase
+  ============================================================
+
+  TLM connections are generally made in:
+
+    connect_phase()
+
+
+  Example:
+
+    compa_h.producer.connect(compc_h.export_port);
+
+
+  And:
+
+    export_port.connect(compb_h.consumer);
+
+
+  The objects are first created in build_phase.
+
+  Then the connections are established in connect_phase.
+
+
+  ============================================================
+  16. BLOCKING PUT vs NON-BLOCKING PUT
+  ============================================================
+
+  Blocking put:
+
+    put(transaction);
+
+  Non-blocking put:
+
+    try_put(transaction);
+
+
+  In this topic we are studying:
+
+    uvm_blocking_put_port
+    uvm_blocking_put_export
+    uvm_blocking_put_imp
+
+  Therefore the operation is:
+
+    put()
+
+
+  ============================================================
+  17. INTERVIEW QUESTIONS
+  ============================================================
+
+  Q1. What is a blocking put port?
+
+  Answer:
+
+    A blocking put port is a TLM port used to call the
+    blocking put() method and send a transaction.
+
+
+  ------------------------------------------------------------
+
+  Q2. What is a blocking put export?
+
+  Answer:
+
+    A blocking put export is used to pass the TLM connection
+    through another component level.
+
+
+  ------------------------------------------------------------
+
+  Q3. What is a blocking put implementation?
+
+  Answer:
+
+    A blocking put implementation connects the TLM interface
+    to the component that actually implements the put() method.
+
+
+  ------------------------------------------------------------
+
+  Q4. Where is put() implemented?
+
+  Answer:
+
+    put() is implemented in the component associated with
+    the implementation port.
+
+  Example:
+
+    uvm_blocking_put_imp #(seq_item, compb) consumer;
+
+  Therefore compb implements:
+
+    task put(seq_item seq_item_h);
+
+
+  ------------------------------------------------------------
+
+  Q5. Why do we need an export?
+
+  Answer:
+
+    An export is needed when the TLM connection has to pass
+    through another component level before reaching the
+    implementation.
+
+
+  ------------------------------------------------------------
+
+  Q6. Where are TLM connections made?
+
+  Answer:
+
+    TLM connections are made in connect_phase().
+
+
+  ------------------------------------------------------------
+
+  Q7. What is the basic connection?
+
+  Answer:
+
+    PORT → IMP
+
+
+  If another hierarchy level is involved:
+
+    PORT → EXPORT → IMP
+
+
+  ============================================================
+  18. MOST IMPORTANT POINTS
+  ============================================================
+
+  Remember these points for interviews:
+
+  - Blocking put uses put().
+  - put() is a task.
+  - Port is used to call put().
+  - Export passes the TLM connection through another level.
+  - Imp connects the TLM interface to the actual put()
+    implementation.
+  - The receiving component implements put().
+  - TLM connections are made in connect_phase().
+  - The transaction type must match between the connected
+    TLM interfaces.
+  - An export is useful when the implementation is located
+    inside another component.
+
+
+  ============================================================
+  19. FINAL MEMORY DIAGRAM
+  ============================================================
+
+              COMPONENT A
+                  |
+                  | PORT
+                  ↓
+              COMPONENT C
+                  |
+                  | EXPORT
+                  ↓
+              COMPONENT B
+                  |
+                  | IMP
+                  ↓
+                put()
+
+
+              PORT
+                ↓
+              CALL
+                ↓
+             EXPORT
+                ↓
+              PASS
+                ↓
+               IMP
+                ↓
+           IMPLEMENT put()
+
+
+  ============================================================
+*/
