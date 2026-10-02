@@ -120,7 +120,7 @@ endclass
 
 
 //tb
-module uvm_blocking_put_port_imp_tb;
+module uvm_blocking_put_port_tb;
   
   initial begin 
     run_test("test");
