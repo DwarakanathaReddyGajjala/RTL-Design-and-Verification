@@ -1,0 +1,628 @@
+/*
+  ============================================================
+                    UVM ANALYSIS PORT
+  ============================================================
+
+  UVM Analysis Port is used to send a transaction from one
+  component to one or more connected components.
+
+  In this example:
+
+    compa  → sends the transaction
+    compb  → receives the transaction
+    compb1 → also receives the transaction
+
+
+  ============================================================
+  1. ANALYSIS PORT
+  ============================================================
+
+  Declaration:
+
+    uvm_analysis_port #(seq_item) producer;
+
+  The analysis port is declared inside the component that
+  sends the transaction.
+
+  In our example:
+
+    compa contains the analysis port named producer.
+
+  The port is created in build_phase():
+
+    producer = new("producer", this);
+
+
+  ============================================================
+  2. SENDING A TRANSACTION
+  ============================================================
+
+  The analysis port uses the write() method to send a
+  transaction.
+
+  Example:
+
+    producer.write(seq_item_h);
+
+  Here:
+
+    producer
+       ↓
+    write()
+       ↓
+    sends seq_item_h
+
+
+  ============================================================
+  3. ANALYSIS IMPLEMENTATION
+  ============================================================
+
+  Declaration:
+
+    uvm_analysis_imp #(seq_item, compb) consumer;
+
+  The analysis implementation is declared inside the
+  component that receives the transaction.
+
+  In our example:
+
+    compb contains:
+
+      uvm_analysis_imp #(seq_item, compb) consumer;
+
+
+  Another receiving component contains:
+
+    uvm_analysis_imp #(seq_item, compb1) consumer1;
+
+
+  The analysis implementation is created in build_phase():
+
+    consumer  = new("consumer", this);
+
+    consumer1 = new("consumer1", this);
+
+
+  ============================================================
+  4. write() METHOD
+  ============================================================
+
+  The component containing the analysis implementation must
+  provide the write() method.
+
+  In compb:
+
+    function void write(seq_item seq_item_h);
+
+      seq_item_h.print();
+
+    endfunction
+
+
+  In compb1:
+
+    function void write(seq_item seq_item_h);
+
+      seq_item_h.print();
+
+    endfunction
+
+
+  Therefore:
+
+    analysis_port
+          ↓
+        write()
+          ↓
+    analysis_imp
+          ↓
+      write() method
+
+
+  ============================================================
+  5. CONNECTION
+  ============================================================
+
+  The connections are made in connect_phase().
+
+  First connection:
+
+    compa_h.producer.connect(compb_h.consumer);
+
+
+  Second connection:
+
+    compa_h.producer.connect(compb1_h.consumer1);
+
+
+  Therefore the same analysis port is connected to two
+  analysis implementations.
+
+    producer
+       |
+       +------> consumer
+       |
+       +------> consumer1
+
+
+  ============================================================
+  6. ONE ANALYSIS PORT TO MULTIPLE RECEIVERS
+  ============================================================
+
+  This is an important feature of an analysis port.
+
+  One analysis port can be connected to multiple analysis
+  implementations.
+
+  In our example:
+
+                    compa
+                      |
+                  producer
+                      |
+              +-------+-------+
+              |               |
+              ↓               ↓
+            compb           compb1
+              |               |
+           consumer        consumer1
+              |               |
+           write()         write()
+
+
+  When compa executes:
+
+    producer.write(seq_item_h);
+
+  the transaction is sent to both connected implementations.
+
+
+  ============================================================
+  7. TRANSACTION FLOW IN THIS EXAMPLE
+  ============================================================
+
+  In compa:
+
+    seq_item_h.data = 256;
+    seq_item_h.addr = 16;
+
+    producer.write(seq_item_h);
+
+
+  The transaction then reaches:
+
+    compb.write(seq_item_h);
+
+  and:
+
+    compb1.write(seq_item_h);
+
+
+  Therefore:
+
+    compa
+      |
+      | write(seq_item_h)
+      |
+      +------------+
+      |            |
+      ↓            ↓
+    compb        compb1
+      |            |
+    write()      write()
+
+
+  ============================================================
+  8. ANALYSIS PORT USES write()
+  ============================================================
+
+  Analysis communication uses:
+
+    write()
+
+
+  Example:
+
+    producer.write(seq_item_h);
+
+
+  The write() method in the receiving component is:
+
+    function void write(seq_item seq_item_h);
+
+
+  Therefore:
+
+    Analysis Port → write()
+
+
+  ============================================================
+  9. write() IS A FUNCTION
+  ============================================================
+
+  In the analysis implementation:
+
+    function void write(seq_item seq_item_h);
+
+      ...
+
+    endfunction
+
+
+  write() is a function.
+
+  It is different from the blocking put() method studied
+  earlier.
+
+  Blocking put:
+
+    task put(seq_item seq_item_h);
+
+
+  Analysis:
+
+    function void write(seq_item seq_item_h);
+
+
+  Therefore:
+
+    put()   → task
+    write() → function
+
+
+  ============================================================
+  10. ANALYSIS PORT vs BLOCKING PUT PORT
+  ============================================================
+
+  Blocking Put:
+
+    uvm_blocking_put_port #(seq_item) producer;
+
+    producer.put(seq_item_h);
+
+
+  Analysis Port:
+
+    uvm_analysis_port #(seq_item) producer;
+
+    producer.write(seq_item_h);
+
+
+  Main difference:
+
+    Blocking Put
+      → uses put()
+
+    Analysis Port
+      → uses write()
+
+
+  Another important difference:
+
+    Blocking Put
+      → one connected path is normally used for the
+        communication.
+
+    Analysis Port
+      → one port can be connected to multiple analysis
+        implementations.
+
+
+  ============================================================
+  11. WHY MULTIPLE CONNECTIONS ARE USEFUL
+  ============================================================
+
+  Suppose one transaction needs to be received by multiple
+  components.
+
+  Instead of creating separate sending mechanisms, one
+  analysis port can be connected to multiple implementations.
+
+  Example:
+
+                    producer
+                       |
+              +--------+--------+
+              |                 |
+              ↓                 ↓
+           compb             compb1
+           write()           write()
+
+
+  The same transaction can therefore be received by both
+  components.
+
+
+  ============================================================
+  12. ANALYSIS PORT AND MONITOR
+  ============================================================
+
+  A common use of an analysis port is to send transactions
+  from a monitor to other components.
+
+  Basic idea:
+
+                    Monitor
+                       |
+                 analysis_port
+                       |
+              +--------+--------+
+              |                 |
+              ↓                 ↓
+           Component         Component
+            write()           write()
+
+
+  The monitor can send a transaction using:
+
+    analysis_port.write(transaction);
+
+
+  The connected components can then receive it through their
+  write() methods.
+
+
+  ============================================================
+  13. ZERO, ONE OR MULTIPLE CONNECTIONS
+  ============================================================
+
+  An analysis port can have:
+
+    - No connected implementation
+    - One connected implementation
+    - Multiple connected implementations
+
+  If no implementation is connected, calling write() does
+  not produce a receiving operation.
+
+  If one is connected, the transaction reaches that
+  implementation.
+
+  If multiple are connected, the transaction reaches all
+  connected implementations.
+
+
+  ============================================================
+  14. DECLARATION vs INSTANTIATION
+  ============================================================
+
+  Analysis port declaration:
+
+    uvm_analysis_port #(seq_item) producer;
+
+  Analysis port instantiation:
+
+    producer = new("producer", this);
+
+
+  Analysis implementation declaration:
+
+    uvm_analysis_imp #(seq_item, compb) consumer;
+
+  Analysis implementation instantiation:
+
+    consumer = new("consumer", this);
+
+
+  Declaration specifies the TLM type.
+
+  Instantiation creates the actual object.
+
+
+  ============================================================
+  15. TRANSACTION TYPE
+  ============================================================
+
+  The analysis port is parameterized with the transaction
+  type.
+
+    uvm_analysis_port #(seq_item) producer;
+
+
+  The implementation uses the same transaction type:
+
+    uvm_analysis_imp #(seq_item, compb) consumer;
+
+
+  Therefore both sides communicate using:
+
+    seq_item
+
+
+  The write() method also receives the same transaction type:
+
+    function void write(seq_item seq_item_h);
+
+
+  ============================================================
+  16. CONNECTIONS ARE MADE IN connect_phase()
+  ============================================================
+
+  The TLM objects are created in build_phase():
+
+    producer = new("producer", this);
+
+    consumer = new("consumer", this);
+
+    consumer1 = new("consumer1", this);
+
+
+  The connections are then made in connect_phase():
+
+    compa_h.producer.connect(compb_h.consumer);
+
+    compa_h.producer.connect(compb1_h.consumer1);
+
+
+  Therefore:
+
+    build_phase()
+        ↓
+    Create TLM objects
+        ↓
+    connect_phase()
+        ↓
+    Connect TLM objects
+
+
+  ============================================================
+  17. COMPLETE EXAMPLE FLOW
+  ============================================================
+
+  compa:
+
+    seq_item_h.data = 256;
+    seq_item_h.addr = 16;
+
+    producer.write(seq_item_h);
+
+
+                    |
+                    ↓
+
+              analysis_port
+                    |
+              +-----+-----+
+              |           |
+              ↓           ↓
+            compb       compb1
+              |           |
+          consumer      consumer1
+              |           |
+              ↓           ↓
+           write()     write()
+
+
+  Both components receive the transaction and execute their
+  respective write() methods.
+
+
+  ============================================================
+  18. IMPORTANT INTERVIEW QUESTIONS
+  ============================================================
+
+  Q1. What is a UVM analysis port?
+
+  Answer:
+
+    A UVM analysis port is used to send a transaction to one
+    or more connected analysis implementations using the
+    write() method.
+
+
+  ------------------------------------------------------------
+
+  Q2. Which method is used by an analysis port?
+
+  Answer:
+
+    write()
+
+
+  ------------------------------------------------------------
+
+  Q3. Is write() a task or a function?
+
+  Answer:
+
+    write() is a void function.
+
+
+  ------------------------------------------------------------
+
+  Q4. Can one analysis port connect to multiple receivers?
+
+  Answer:
+
+    Yes.
+
+    One analysis port can be connected to multiple analysis
+    implementations.
+
+
+  ------------------------------------------------------------
+
+  Q5. What happens when write() is called and multiple
+     implementations are connected?
+
+  Answer:
+
+    The transaction is sent to all connected analysis
+    implementations.
+
+
+  ------------------------------------------------------------
+
+  Q6. Where is write() implemented?
+
+  Answer:
+
+    The component containing the analysis implementation
+    provides the write() method.
+
+
+  ------------------------------------------------------------
+
+  Q7. Where are the connections made?
+
+  Answer:
+
+    The connections are made in connect_phase().
+
+
+  ------------------------------------------------------------
+
+  Q8. What is the main difference between blocking put and
+     analysis port?
+
+  Answer:
+
+    Blocking put uses put().
+
+    Analysis port uses write().
+
+    Also, an analysis port can be connected to multiple
+    analysis implementations.
+
+
+  ============================================================
+  19. IMPORTANT POINTS TO REMEMBER
+  ============================================================
+
+  - Analysis port is used to send transactions.
+  - It uses the write() method.
+  - write() is a void function.
+  - Analysis implementation provides the write() method.
+  - One analysis port can connect to multiple implementations.
+  - The transaction can reach all connected implementations.
+  - Connections are made in connect_phase().
+  - The transaction type must match across the connection.
+  - Analysis ports are commonly used to send transactions
+    from a monitor to other components.
+
+
+  ============================================================
+  20. FINAL MEMORY TRICK
+  ============================================================
+
+                    ANALYSIS PORT
+                          |
+                       write()
+                          |
+              +-----------+-----------+
+              |                       |
+              ↓                       ↓
+        ANALYSIS IMP             ANALYSIS IMP
+              |                       |
+           write()                 write()
+
+
+              ANALYSIS PORT
+                    ↓
+                 write()
+                    ↓
+          ONE OR MORE RECEIVERS
+
+
+  ============================================================
+*/
