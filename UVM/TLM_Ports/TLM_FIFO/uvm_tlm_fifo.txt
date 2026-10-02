@@ -1,0 +1,825 @@
+/*
+  ============================================================
+                         UVM TLM FIFO
+  ============================================================
+
+  A UVM TLM FIFO is used to store transaction objects between
+  two UVM components.
+
+  It is useful when the sender and receiver do not operate at
+  the same rate.
+
+  The sender puts transactions into the FIFO.
+
+  The receiver gets transactions from the FIFO.
+
+
+  ============================================================
+  1. BASIC IDEA
+  ============================================================
+
+  Without a FIFO:
+
+    compa
+      |
+      | transaction
+      ↓
+    compb
+
+
+  With a FIFO:
+
+    compa
+      |
+      | put()
+      ↓
+    TLM FIFO
+      |
+      | get()
+      ↓
+    compb
+
+
+  The FIFO stores the transaction until the receiver gets it.
+
+
+  ============================================================
+  2. WHY DO WE NEED A TLM FIFO?
+  ============================================================
+
+  Consider that the sender can produce transactions faster
+  than the receiver can consume them.
+
+  Example:
+
+    Sender:
+      produces transactions quickly
+
+    Receiver:
+      gets transactions slowly
+
+
+  The FIFO can temporarily store the transactions.
+
+    Sender
+       |
+       ↓
+    +---------+
+    |  FIFO   |
+    | T1      |
+    | T2      |
+    | T3      |
+    +---------+
+       |
+       ↓
+    Receiver
+
+
+  Therefore the sender and receiver do not have to operate at
+  exactly the same rate.
+
+
+  ============================================================
+  3. TLM FIFO IN THIS EXAMPLE
+  ============================================================
+
+  The FIFO is declared as:
+
+    uvm_tlm_fifo #(seq_item) tlm_fifo;
+
+
+  Here:
+
+    seq_item
+       ↓
+    Transaction type stored in the FIFO.
+
+
+  The FIFO is created in build_phase():
+
+    tlm_fifo = new("tlm_fifo", this);
+
+
+  Therefore the FIFO object is created before the TLM
+  connections are made.
+
+
+  ============================================================
+  4. FIFO STORES TRANSACTIONS
+  ============================================================
+
+  The FIFO stores objects of the specified transaction type.
+
+  In our example:
+
+    uvm_tlm_fifo #(seq_item)
+
+
+  Therefore:
+
+    seq_item → transaction stored in the FIFO.
+
+
+  The same transaction type is used by:
+
+    compa
+    FIFO
+    compb
+
+
+  ============================================================
+  5. SENDER SIDE
+  ============================================================
+
+  compa contains:
+
+    uvm_blocking_put_port #(seq_item) producer;
+
+
+  The port is created using:
+
+    producer = new("producer", this);
+
+
+  The transaction is sent using:
+
+    producer.put(seq_item_h);
+
+
+  Therefore:
+
+    compa
+      |
+      | put()
+      ↓
+    FIFO
+
+
+  ============================================================
+  6. RECEIVER SIDE
+  ============================================================
+
+  compb contains:
+
+    uvm_blocking_get_port #(seq_item) consumer;
+
+
+  The port is created using:
+
+    consumer = new("consumer", this);
+
+
+  The receiver gets the transaction using:
+
+    consumer.get(seq_item_h);
+
+
+  Therefore:
+
+    FIFO
+      |
+      | get()
+      ↓
+    compb
+
+
+  ============================================================
+  7. PUT EXPORT OF FIFO
+  ============================================================
+
+  The FIFO provides a put_export.
+
+  In the test:
+
+    compa_h.producer.connect(tlm_fifo.put_export);
+
+
+  This connects:
+
+    compa producer
+          ↓
+       put_export
+          ↓
+       TLM FIFO
+
+
+  Therefore the transaction sent using:
+
+    producer.put(seq_item_h);
+
+  enters the FIFO.
+
+
+  ============================================================
+  8. GET EXPORT OF FIFO
+  ============================================================
+
+  The FIFO also provides a get_export.
+
+  In the test:
+
+    compb_h.consumer.connect(tlm_fifo.get_export);
+
+
+  This connects:
+
+    compb consumer
+          ↓
+       get_export
+          ↓
+       TLM FIFO
+
+
+  When compb executes:
+
+    consumer.get(seq_item_h);
+
+  the transaction is obtained from the FIFO.
+
+
+  ============================================================
+  9. COMPLETE CONNECTION
+  ============================================================
+
+  The complete connection in this example is:
+
+                     TLM FIFO
+                  +-------------+
+                  |             |
+                  |   FIFO      |
+                  |             |
+                  +-------------+
+                    ↑         ↓
+              put_export   get_export
+                    ↑         ↓
+                    |         |
+                  compa      compb
+                 producer   consumer
+
+
+  More simply:
+
+    compa
+      |
+      | put()
+      ↓
+    put_export
+      |
+      ↓
+    TLM FIFO
+      |
+      ↓
+    get_export
+      |
+      | get()
+      ↓
+    compb
+
+
+  ============================================================
+  10. PUT OPERATION
+  ============================================================
+
+  compa executes:
+
+    producer.put(seq_item_h);
+
+
+  The transaction is placed into the FIFO.
+
+  The FIFO stores the transaction until it is removed by a
+  get operation.
+
+
+  ============================================================
+  11. GET OPERATION
+  ============================================================
+
+  compb executes:
+
+    consumer.get(seq_item_h);
+
+
+  The FIFO provides a transaction to compb.
+
+  The transaction is removed from the FIFO when it is obtained
+  by the get operation.
+
+
+  ============================================================
+  12. BLOCKING PUT
+  ============================================================
+
+  The sender uses:
+
+    uvm_blocking_put_port
+
+
+  and calls:
+
+    put()
+
+
+  If the FIFO cannot accept another transaction because it is
+  full, the blocking put operation waits until space becomes
+  available.
+
+
+  Therefore:
+
+    FIFO FULL
+       ↓
+    put() waits
+       ↓
+    Receiver gets a transaction
+       ↓
+    Space becomes available
+       ↓
+    put() can continue
+
+
+  ============================================================
+  13. BLOCKING GET
+  ============================================================
+
+  The receiver uses:
+
+    uvm_blocking_get_port
+
+
+  and calls:
+
+    get()
+
+
+  If the FIFO does not contain a transaction, the blocking
+  get operation waits until a transaction becomes available.
+
+
+  Therefore:
+
+    FIFO EMPTY
+       ↓
+    get() waits
+       ↓
+    Sender puts a transaction
+       ↓
+    Transaction becomes available
+       ↓
+    get() can continue
+
+
+  ============================================================
+  14. FIFO DEPTH
+  ============================================================
+
+  FIFO depth specifies how many transactions the FIFO can
+  store.
+
+  Example:
+
+    uvm_tlm_fifo #(seq_item) tlm_fifo;
+
+    tlm_fifo = new("tlm_fifo", this, 4);
+
+
+  Here:
+
+    4 → FIFO depth
+
+
+  Therefore the FIFO can hold up to 4 transactions at a time.
+
+
+  ============================================================
+  15. FIFO FULL
+  ============================================================
+
+  When the number of stored transactions reaches the FIFO
+  depth, the FIFO becomes full.
+
+  Example:
+
+    FIFO depth = 2
+
+
+    +---------+
+    |   T1    |
+    |   T2    |
+    +---------+
+
+    FIFO is FULL.
+
+
+  A blocking put cannot proceed until space becomes available.
+
+
+  ============================================================
+  16. FIFO EMPTY
+  ============================================================
+
+  When the FIFO contains no transactions, it is empty.
+
+    +---------+
+    |         |
+    |         |
+    +---------+
+
+    FIFO is EMPTY.
+
+
+  A blocking get cannot proceed until a transaction is
+  available.
+
+
+  ============================================================
+  17. FIFO STATUS
+  ============================================================
+
+  A TLM FIFO provides methods to check its status.
+
+  For example:
+
+    is_full()
+
+  checks whether the FIFO is full.
+
+  Example:
+
+    if (tlm_fifo.is_full())
+      `uvm_info("FIFO",
+                "FIFO is FULL",
+                UVM_MEDIUM)
+
+
+  Similarly, FIFO status can be checked using the appropriate
+  FIFO methods when required.
+
+
+  ============================================================
+  18. FIFO AND DIFFERENT DATA RATES
+  ============================================================
+
+  The main reason for using a FIFO is to allow the sender and
+  receiver to operate at different rates.
+
+  Example:
+
+    Sender → fast
+    Receiver → slow
+
+
+    Sender
+       |
+       ↓
+    +---------+
+    |   T1    |
+    |   T2    |
+    |   T3    |
+    +---------+
+       |
+       ↓
+    Receiver
+
+
+  The FIFO temporarily stores transactions until the receiver
+  can process them.
+
+
+  ============================================================
+  19. TRANSACTION FLOW IN THIS EXAMPLE
+  ============================================================
+
+  compa creates:
+
+    seq_item_h
+
+
+  Then:
+
+    seq_item_h.data = 48;
+    seq_item_h.addr = 96;
+
+
+  Then compa sends it:
+
+    producer.put(seq_item_h);
+
+
+  Flow:
+
+    compa
+      ↓
+    producer
+      ↓
+    FIFO put_export
+      ↓
+    TLM FIFO
+      ↓
+    FIFO get_export
+      ↓
+    consumer
+      ↓
+    compb
+
+
+  Finally compb executes:
+
+    seq_item_h.print();
+
+
+  ============================================================
+  20. PORTS USED WITH THE FIFO
+  ============================================================
+
+  Sender side:
+
+    uvm_blocking_put_port #(seq_item) producer;
+
+
+  Receiver side:
+
+    uvm_blocking_get_port #(seq_item) consumer;
+
+
+  FIFO:
+
+    uvm_tlm_fifo #(seq_item) tlm_fifo;
+
+
+  FIFO interfaces:
+
+    tlm_fifo.put_export
+    tlm_fifo.get_export
+
+
+  Therefore:
+
+    PUT PORT
+       ↓
+    PUT EXPORT
+       ↓
+    FIFO
+       ↓
+    GET EXPORT
+       ↓
+    GET PORT
+
+
+  ============================================================
+  21. BLOCKING PUT vs BLOCKING GET
+  ============================================================
+
+  BLOCKING PUT:
+
+    producer.put(transaction);
+
+
+  Used to put a transaction into the FIFO.
+
+  If the FIFO is full, the operation waits.
+
+
+  BLOCKING GET:
+
+    consumer.get(transaction);
+
+
+  Used to get a transaction from the FIFO.
+
+  If the FIFO is empty, the operation waits.
+
+
+  Simple memory:
+
+    put() → Put transaction into FIFO
+
+    get() → Get transaction from FIFO
+
+
+  ============================================================
+  22. WHY PUT_EXPORT AND GET_EXPORT?
+  ============================================================
+
+  The TLM FIFO provides interfaces through:
+
+    put_export
+    get_export
+
+
+  The sender connects to:
+
+    FIFO.put_export
+
+
+  The receiver connects to:
+
+    FIFO.get_export
+
+
+  Therefore the FIFO provides separate interfaces for:
+
+    putting transactions
+    getting transactions
+
+
+  ============================================================
+  23. CONNECTIONS ARE MADE IN connect_phase()
+  ============================================================
+
+  The components and FIFO are created in build_phase().
+
+  Then connections are made in connect_phase():
+
+    compa_h.producer.connect(tlm_fifo.put_export);
+
+    compb_h.consumer.connect(tlm_fifo.get_export);
+
+
+  Therefore:
+
+    build_phase()
+        ↓
+    Create compa
+    Create compb
+    Create FIFO
+        ↓
+    connect_phase()
+        ↓
+    Connect PUT
+    Connect GET
+
+
+  ============================================================
+  24. TLM FIFO vs DIRECT CONNECTION
+  ============================================================
+
+  Direct connection:
+
+    compa
+      |
+      ↓
+    compb
+
+
+  With FIFO:
+
+    compa
+      |
+      ↓
+    FIFO
+      |
+      ↓
+    compb
+
+
+  The FIFO provides storage between the two components.
+
+  This is useful when the sender and receiver do not operate
+  at the same rate.
+
+
+  ============================================================
+  25. IMPORTANT INTERVIEW QUESTIONS
+  ============================================================
+
+  Q1. What is a UVM TLM FIFO?
+
+  Answer:
+
+    A UVM TLM FIFO is used to store transaction objects
+    between UVM components so that the sender and receiver
+    can operate independently at different rates.
+
+
+  ------------------------------------------------------------
+
+  Q2. Why is a FIFO required between two components?
+
+  Answer:
+
+    A FIFO provides temporary storage when the sender and
+    receiver operate at different rates.
+
+
+  ------------------------------------------------------------
+
+  Q3. Which port is used by the sender?
+
+  Answer:
+
+    uvm_blocking_put_port
+
+
+  ------------------------------------------------------------
+
+  Q4. Which port is used by the receiver?
+
+  Answer:
+
+    uvm_blocking_get_port
+
+
+  ------------------------------------------------------------
+
+  Q5. Which interfaces of the FIFO are connected to the
+     components?
+
+  Answer:
+
+    put_export → connected to the sender's put port.
+
+    get_export → connected to the receiver's get port.
+
+
+  ------------------------------------------------------------
+
+  Q6. What happens when the FIFO is full?
+
+  Answer:
+
+    A blocking put operation waits until space becomes
+    available.
+
+
+  ------------------------------------------------------------
+
+  Q7. What happens when the FIFO is empty?
+
+  Answer:
+
+    A blocking get operation waits until a transaction
+    becomes available.
+
+
+  ------------------------------------------------------------
+
+  Q8. What does FIFO depth mean?
+
+  Answer:
+
+    FIFO depth specifies the maximum number of transactions
+    that can be stored in the FIFO.
+
+
+  ============================================================
+  26. IMPORTANT POINTS TO REMEMBER
+  ============================================================
+
+  - TLM FIFO stores transaction objects.
+  - Sender uses blocking put port.
+  - Receiver uses blocking get port.
+  - Sender uses put().
+  - Receiver uses get().
+  - FIFO provides put_export.
+  - FIFO provides get_export.
+  - put_export connects to the sender's put port.
+  - get_export connects to the receiver's get port.
+  - FIFO depth determines storage capacity.
+  - Full FIFO causes blocking put() to wait.
+  - Empty FIFO causes blocking get() to wait.
+  - FIFO allows sender and receiver to operate at different
+    rates.
+  - Connections are made in connect_phase().
+
+
+  ============================================================
+  27. FINAL MEMORY DIAGRAM
+  ============================================================
+
+                     SENDER
+                     compa
+                       |
+                       |
+                 put_port
+                       |
+                       ↓
+                  put_export
+                       |
+                       ↓
+              +----------------+
+              |    TLM FIFO    |
+              |                |
+              |   T1           |
+              |   T2           |
+              |   T3           |
+              +----------------+
+                       |
+                       ↓
+                  get_export
+                       |
+                       ↓
+                 get_port
+                       |
+                       |
+                    compb
+                   RECEIVER
+
+
+                 put() → FIFO
+
+                 get() → FIFO
+
+
+  ============================================================
+*/
