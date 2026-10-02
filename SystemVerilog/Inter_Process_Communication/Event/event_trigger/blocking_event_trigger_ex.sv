@@ -113,7 +113,7 @@
 
   ============================================================
 */
-// module event_control_ex1;//code1a
+// module blocking_event_trigger_ex1;//code1a
 //   event a;
 //   initial begin
 //     ->a;
@@ -126,7 +126,7 @@
 // endmodule
 
 
-// module event_control_ex2;//code1b
+// module blocking_event_trigger_ex2;//code1b
 //   event a;
 //   initial begin
 //     -> a;
@@ -139,7 +139,7 @@
 // endmodule
  
 
-// module event_control_ex3;//code2a
+// module blocking_event_trigger_ex3;//code2a
 //   event a;
 //   initial begin
 //     #0 -> a;
@@ -162,7 +162,7 @@
 
 
 
-module event_control_ex4;//code2b
+module blocking_event_trigger_ex4;//code2b
   event a;
   initial begin
     -> a;
@@ -185,7 +185,7 @@ endmodule
 
 
 
-// module event_control_ex5;//code2c
+// module blocking_event_trigger_ex5;//code2c
 //   event a;
 //   initial begin
 //     $display(" thred2 waiting  for event trigger");
