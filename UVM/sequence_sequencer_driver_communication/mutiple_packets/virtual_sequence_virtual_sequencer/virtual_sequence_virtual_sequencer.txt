@@ -1,0 +1,924 @@
+/*
+  ============================================================
+              UVM VIRTUAL SEQUENCE & VIRTUAL SEQUENCER
+  ============================================================
+
+  A virtual sequence is used to control and start multiple
+  sequences on different sequencers.
+
+  A virtual sequencer contains handles to the actual sequencers
+  and provides a central place from which the virtual sequence
+  can control them.
+
+  This is especially useful when the UVM environment contains
+  multiple agents and multiple interfaces.
+
+  Example:
+
+                  TEST
+                   |
+                  ENV
+              _____|_____
+             |           |
+         APB Agent    AHB Agent
+             |           |
+         APB Sequencer  AHB Sequencer
+             |           |
+         APB Driver    AHB Driver
+
+
+  The virtual sequencer connects to the APB and AHB sequencers:
+
+                  Virtual Sequencer
+                   /            \
+                  /              \
+        APB Sequencer          AHB Sequencer
+              |                     |
+         APB Driver             AHB Driver
+
+
+  ============================================================
+  1. WHY DO WE NEED A VIRTUAL SEQUENCE?
+  ============================================================
+
+  In a simple environment, one sequence can be started directly
+  on one sequencer.
+
+      Sequence
+         |
+         ↓
+      Sequencer
+         |
+         ↓
+       Driver
+
+
+  But in a complex environment, there may be multiple agents.
+
+      APB Agent
+          |
+      APB Sequencer
+
+      AHB Agent
+          |
+      AHB Sequencer
+
+  We may need to control sequences running on both APB and AHB.
+
+  Therefore, a virtual sequence can be used to control these
+  different sequences from one place.
+
+  The source material describes this use case for SoC designs
+  where different modules use different protocols and therefore
+  require separate agents and sequencers.
+
+  ============================================================
+  2. WHAT IS A VIRTUAL SEQUENCE?
+  ============================================================
+
+  A virtual sequence is a sequence used to start and control
+  multiple sequences running on different sequencers.
+
+  It is not associated with one particular transaction type.
+
+  Example:
+
+      virtual_seq
+          |
+          |---- starts ----> apb_seq
+          |                     |
+          |                     ↓
+          |                 apb_seqr
+          |
+          |---- starts ----> ahb_seq
+                                |
+                                ↓
+                            ahb_seqr
+
+
+  In our example:
+
+      class virtual_seq extends uvm_sequence;
+
+  The virtual sequence itself does not generate APB or AHB
+  sequence items.
+
+  Instead, it starts:
+
+      apb_seq
+      ahb_seq
+
+  on their respective sequencers.
+
+
+  ============================================================
+  3. WHAT IS A VIRTUAL SEQUENCER?
+  ============================================================
+
+  A virtual sequencer is a UVM sequencer used to hold handles
+  to other real sequencers.
+
+  Example:
+
+      class virtual_seqr extends uvm_sequencer;
+
+        apb_seqr apb_seqr_h;
+        ahb_seqr ahb_seqr_h;
+
+      endclass
+
+
+  The virtual sequencer does not connect to a driver.
+
+  It also does not process sequence items.
+
+  Its main purpose is to provide access to the real sequencers
+  that the virtual sequence needs to control.
+
+
+  ============================================================
+  4. WHY IS IT CALLED "VIRTUAL"?
+  ============================================================
+
+  "Virtual sequence" and "virtual sequencer" do NOT require
+  the SystemVerilog 'virtual' keyword.
+
+  They are simply UVM names used to describe their purpose.
+
+  There is no:
+
+      uvm_virtual_sequence
+
+  or
+
+      uvm_virtual_sequencer
+
+  base class.
+
+  Instead:
+
+      virtual sequence
+          ↓
+      extends uvm_sequence
+
+      virtual sequencer
+          ↓
+      extends uvm_sequencer
+
+
+  The virtual sequencer is called virtual because it does not
+  connect to a driver and does not process sequence items.
+
+  It only controls other sequencers.
+
+
+  ============================================================
+  5. VIRTUAL SEQUENCER DECLARATION
+  ============================================================
+
+      class virtual_seqr extends uvm_sequencer;
+
+        apb_seqr apb_seqr_h;
+        ahb_seqr ahb_seqr_h;
+
+        `uvm_component_utils(virtual_seqr)
+
+        function new(string name = "virtual_seqr",
+                     uvm_component parent = null);
+          super.new(name,parent);
+        endfunction
+
+      endclass
+
+
+  Important:
+
+      apb_seqr apb_seqr_h;
+      ahb_seqr ahb_seqr_h;
+
+  These are handles to the actual APB and AHB sequencers.
+
+  The virtual sequencer itself is not connected to a driver.
+
+
+  ============================================================
+  6. WHY IS THE VIRTUAL SEQUENCER NOT PARAMETERIZED?
+  ============================================================
+
+  A normal sequencer is generally parameterized by the sequence
+  item type.
+
+      class apb_seqr extends uvm_sequencer #(apb_seq_item);
+
+      class ahb_seqr extends uvm_sequencer #(ahb_seq_item);
+
+
+  This is because these sequencers handle sequence items.
+
+      APB Sequencer
+          ↓
+      apb_seq_item
+
+      AHB Sequencer
+          ↓
+      ahb_seq_item
+
+
+  The virtual sequencer does not handle a particular sequence
+  item.
+
+  It only contains handles to other sequencers.
+
+      class virtual_seqr extends uvm_sequencer;
+
+        apb_seqr apb_seqr_h;
+        ahb_seqr ahb_seqr_h;
+
+      endclass
+
+
+  Therefore, in this design it is not parameterized with
+  a sequence-item type.
+
+
+  ============================================================
+  7. CONNECTING THE VIRTUAL SEQUENCER
+  ============================================================
+
+  The virtual sequencer is created inside the environment.
+
+      virtual_seqr_h =
+          virtual_seqr::type_id::create("virtual_seqr_h", this);
+
+
+  During connect_phase(), its sequencer handles are assigned:
+
+      virtual_seqr_h.apb_seqr_h =
+          apb_agent_h.apb_seqr_h;
+
+      virtual_seqr_h.ahb_seqr_h =
+          ahb_agent_h.ahb_seqr_h;
+
+
+  Therefore:
+
+      virtual_seqr_h.apb_seqr_h
+              ↓
+      apb_agent_h.apb_seqr_h
+
+
+      virtual_seqr_h.ahb_seqr_h
+              ↓
+      ahb_agent_h.ahb_seqr_h
+
+
+  The virtual sequencer now has access to the real APB and
+  AHB sequencers.
+
+
+  ============================================================
+  8. VIRTUAL SEQUENCE DECLARATION
+  ============================================================
+
+      class virtual_seq extends uvm_sequence;
+
+        apb_seq apb_seq_h;
+        ahb_seq ahb_seq_h;
+
+        virtual_seqr virtual_seqr_h;
+
+        `uvm_declare_p_sequencer(virtual_seqr)
+        `uvm_object_utils(virtual_seq)
+
+      endclass
+
+
+  The virtual sequence creates the APB and AHB sequences.
+
+      apb_seq_h = apb_seq::type_id::create("apb_seq_h");
+      ahb_seq_h = ahb_seq::type_id::create("ahb_seq_h");
+
+
+  ============================================================
+  9. WHAT IS p_sequencer?
+  ============================================================
+
+  `uvm_declare_p_sequencer(virtual_seqr)
+
+  This macro provides the sequence with a handle called:
+
+      p_sequencer
+
+
+  The type of p_sequencer is:
+
+      virtual_seqr
+
+
+  Therefore, inside the virtual sequence we can access:
+
+      p_sequencer.apb_seqr_h
+
+      p_sequencer.ahb_seqr_h
+
+
+  In simple words:
+
+      p_sequencer
+          ↓
+      gives the virtual sequence access to
+      the virtual sequencer
+
+
+  Then:
+
+      p_sequencer.apb_seqr_h
+          ↓
+      APB Sequencer
+
+      p_sequencer.ahb_seqr_h
+          ↓
+      AHB Sequencer
+
+
+  ============================================================
+  10. STARTING THE REAL SEQUENCES
+  ============================================================
+
+  Inside the virtual sequence:
+
+      apb_seq_h.start(p_sequencer.apb_seqr_h);
+
+      ahb_seq_h.start(p_sequencer.ahb_seqr_h);
+
+
+  This means:
+
+      virtual_seq
+           |
+           |---- start()
+           ↓
+      apb_seq
+           |
+           ↓
+      apb_seqr
+           |
+           ↓
+      apb_driver
+
+
+      virtual_seq
+           |
+           |---- start()
+           ↓
+      ahb_seq
+           |
+           ↓
+      ahb_seqr
+           |
+           ↓
+      ahb_driver
+
+
+  The virtual sequence therefore acts as the central controller
+  for the APB and AHB sequences.
+
+
+  ============================================================
+  11. STARTING THE VIRTUAL SEQUENCE FROM TEST
+  ============================================================
+
+  In the test:
+
+      virtual_seq_h =
+          virtual_seq::type_id::create("virtual_seq_h");
+
+
+  Then:
+
+      virtual_seq_h.start(env_h.virtual_seqr_h);
+
+
+  This starts the virtual sequence on the virtual sequencer.
+
+  The complete flow becomes:
+
+      TEST
+        |
+        | start()
+        ↓
+      VIRTUAL SEQUENCE
+        |
+        | p_sequencer.apb_seqr_h
+        ↓
+      APB SEQUENCE
+        |
+        ↓
+      APB SEQUENCER
+        |
+        ↓
+      APB DRIVER
+
+
+      VIRTUAL SEQUENCE
+        |
+        | p_sequencer.ahb_seqr_h
+        ↓
+      AHB SEQUENCE
+        |
+        ↓
+      AHB SEQUENCER
+        |
+        ↓
+      AHB DRIVER
+
+
+  ============================================================
+  12. COMPLETE HIERARCHY IN OUR EXAMPLE
+  ============================================================
+
+                       uvm_test_top
+                            |
+                            ↓
+                          env_h
+                     _______|_______
+                    |               |
+                    ↓               ↓
+              apb_agent_h      ahb_agent_h
+                    |               |
+              ______|______     _____|______
+             |             |   |            |
+             ↓             ↓   ↓            ↓
+        apb_seqr_h   apb_driver_h   ahb_seqr_h   ahb_driver_h
+
+
+                    env_h
+                      |
+                      ↓
+               virtual_seqr_h
+                 /          \
+                /            \
+               ↓              ↓
+         apb_seqr_h       ahb_seqr_h
+
+
+  Sequence objects:
+
+      virtual_seq_h
+           |
+           |---- apb_seq_h
+           |
+           └---- ahb_seq_h
+
+
+  Important:
+
+  The sequences are UVM objects, not components.
+
+  The virtual sequencer, APB sequencer, AHB sequencer,
+  agents and drivers are UVM components.
+
+
+  ============================================================
+  13. COMPLETE COMMUNICATION FLOW
+  ============================================================
+
+      test
+       |
+       | virtual_seq_h.start(virtual_seqr_h)
+       ↓
+      virtual_seq
+       |
+       | p_sequencer.apb_seqr_h
+       ↓
+      apb_seq
+       ↓
+      apb_seqr
+       ↓
+      apb_driver
+
+
+      virtual_seq
+       |
+       | p_sequencer.ahb_seqr_h
+       ↓
+      ahb_seq
+       ↓
+      ahb_seqr
+       ↓
+      ahb_driver
+
+
+  This is the main idea of a virtual sequence.
+
+
+  ============================================================
+  14. WITHOUT A VIRTUAL SEQUENCE
+  ============================================================
+
+  Without a virtual sequence, the test can directly start
+  individual sequences.
+
+      apb_seq_h.start(env_h.apb_agent_h.apb_seqr_h);
+
+      ahb_seq_h.start(env_h.ahb_agent_h.ahb_seqr_h);
+
+
+  The test itself controls the individual sequences.
+
+      TEST
+       |
+       |---- APB sequence → APB sequencer
+       |
+       └---- AHB sequence → AHB sequencer
+
+
+  This works, but the control of multiple sequences is kept
+  inside the test.
+
+
+  ============================================================
+  15. WITH A VIRTUAL SEQUENCE
+  ============================================================
+
+  With a virtual sequence:
+
+      TEST
+       |
+       ↓
+      VIRTUAL SEQUENCE
+       |
+       |---- APB sequence → APB sequencer
+       |
+       └---- AHB sequence → AHB sequencer
+
+
+  Now the virtual sequence controls the individual sequences.
+
+  This keeps the coordination of multiple sequences inside
+  the sequence itself instead of putting all the control logic
+  directly in the test.
+
+
+  ============================================================
+  16. WITH VIRTUAL SEQUENCE BUT WITHOUT VIRTUAL SEQUENCER
+  ============================================================
+
+  A virtual sequence can also contain handles to the real
+  sequencers directly.
+
+      class virtual_seq extends uvm_sequence;
+
+        apb_seqr apb_seqr_h;
+        ahb_seqr ahb_seqr_h;
+
+        ...
+
+      endclass
+
+
+  Then:
+
+      apb_seq_h.start(apb_seqr_h);
+
+      ahb_seq_h.start(ahb_seqr_h);
+
+
+  In this approach, a separate virtual sequencer is not used.
+
+  The test must assign the sequencer handles before starting
+  the virtual sequence.
+
+      virtual_seq_h.apb_seqr_h =
+          env_h.apb_agent_h.apb_seqr_h;
+
+      virtual_seq_h.ahb_seqr_h =
+          env_h.ahb_agent_h.ahb_seqr_h;
+
+      virtual_seq_h.start(null);
+
+
+  The source material also presents this approach as
+  "virtual sequence without a virtual sequencer."
+
+
+  ============================================================
+  17. THREE APPROACHES
+  ============================================================
+
+  APPROACH 1:
+  ------------------------------------------------------------
+
+  No virtual sequence
+
+      TEST
+       |
+       ├── APB sequence → APB sequencer
+       |
+       └── AHB sequence → AHB sequencer
+
+
+  APPROACH 2:
+  ------------------------------------------------------------
+
+  Virtual sequence
+  No virtual sequencer
+
+      TEST
+       |
+       ↓
+      Virtual sequence
+       |
+       ├── APB sequence → APB sequencer
+       |
+       └── AHB sequence → AHB sequencer
+
+
+  APPROACH 3:
+  ------------------------------------------------------------
+
+  Virtual sequence
+  + Virtual sequencer
+
+      TEST
+       |
+       ↓
+      Virtual sequence
+       |
+       ↓
+      Virtual sequencer
+       |              |
+       ↓              ↓
+   APB sequencer   AHB sequencer
+       |              |
+   APB driver      AHB driver
+
+
+  ============================================================
+  18. SEQUENTIAL EXECUTION IN OUR EXAMPLE
+  ============================================================
+
+  Our current virtual sequence contains:
+
+      apb_seq_h.start(p_sequencer.apb_seqr_h);
+
+      ahb_seq_h.start(p_sequencer.ahb_seqr_h);
+
+
+  These statements are written one after another.
+
+  Therefore, the APB sequence is started first and the
+  statement for the AHB sequence is reached after the APB
+  sequence completes.
+
+  In other words:
+
+      APB sequence
+          ↓
+      completes
+          ↓
+      AHB sequence
+          ↓
+      completes
+
+
+  ============================================================
+  19. PARALLEL EXECUTION
+  ============================================================
+
+  If multiple sequences need to run concurrently, they can be
+  started using fork...join.
+
+      fork
+        apb_seq_h.start(p_sequencer.apb_seqr_h);
+        ahb_seq_h.start(p_sequencer.ahb_seqr_h);
+      join
+
+
+  The two sequence starts are then executed concurrently.
+
+      APB sequence ────────────────→
+      
+      AHB sequence ────────────────→
+
+
+  The exact coordination required depends on the verification
+  scenario.
+
+
+  ============================================================
+  20. WHY VIRTUAL SEQUENCES ARE IMPORTANT IN COMPLEX
+      ENVIRONMENTS
+  ============================================================
+
+  A complex SoC may contain multiple interfaces such as:
+
+      APB
+      AHB
+      PCIe
+      AXI
+      etc.
+
+  Each interface may have its own:
+
+      Agent
+        ↓
+      Sequencer
+        ↓
+      Driver
+
+
+  A virtual sequence can coordinate sequences across these
+  different interfaces.
+
+  Example:
+
+      virtual_seq
+          |
+          ├── APB sequence
+          |
+          ├── AHB sequence
+          |
+          └── PCIe sequence
+
+
+  Therefore, virtual sequences are useful when stimulus from
+  multiple interfaces must be controlled or coordinated.
+
+
+  ============================================================
+  21. IMPORTANT TERMINOLOGY
+  ============================================================
+
+  Sequence
+  ------------------------------------------------------------
+  Generates sequence items.
+
+  Example:
+
+      apb_seq
+
+
+  Sequence Item
+  ------------------------------------------------------------
+  Represents the transaction/data sent by a sequence.
+
+  Example:
+
+      apb_seq_item
+
+
+  Sequencer
+  ------------------------------------------------------------
+  Receives sequence items from sequences and provides them
+  to the driver.
+
+  Example:
+
+      apb_seqr
+
+
+  Driver
+  ------------------------------------------------------------
+  Gets sequence items from the sequencer and drives the DUT.
+
+  Example:
+
+      apb_driver
+
+
+  Virtual Sequence
+  ------------------------------------------------------------
+  Starts and controls multiple sequences running on different
+  sequencers.
+
+  Example:
+
+      virtual_seq
+
+
+  Virtual Sequencer
+  ------------------------------------------------------------
+  Contains handles to real sequencers and allows the virtual
+  sequence to access them.
+
+  Example:
+
+      virtual_seqr
+
+
+  p_sequencer
+  ------------------------------------------------------------
+  Handle provided inside a sequence by:
+
+      `uvm_declare_p_sequencer(virtual_seqr)
+
+  It gives the virtual sequence access to the virtual
+  sequencer.
+
+
+  ============================================================
+  22. MOST IMPORTANT DIFFERENCE
+  ============================================================
+
+  NORMAL SEQUENCER:
+
+      Sequence
+          ↓
+      Sequencer
+          ↓
+      Driver
+
+
+  VIRTUAL SEQUENCER:
+
+      Virtual Sequence
+             ↓
+      Virtual Sequencer
+          /       \
+         /         \
+        ↓           ↓
+    APB Seqr     AHB Seqr
+        ↓           ↓
+    APB Driver   AHB Driver
+
+
+  A virtual sequencer does NOT replace the real sequencers.
+
+  It only provides handles to them so that a virtual sequence
+  can control them.
+
+
+  ============================================================
+  23. KEY POINTS TO REMEMBER
+  ============================================================
+
+  1. Virtual sequence controls multiple sequences.
+
+  2. Virtual sequencer contains handles to real sequencers.
+
+  3. Virtual sequencer is not connected to a driver.
+
+  4. Virtual sequencer does not process sequence items.
+
+  5. Virtual sequence extends uvm_sequence.
+
+  6. Virtual sequencer extends uvm_sequencer.
+
+  7. The virtual sequencer is normally not parameterized with
+     a sequence-item type because it does not handle a
+     particular sequence item.
+
+  8. `uvm_declare_p_sequencer(virtual_seqr)` provides the
+     p_sequencer handle inside the virtual sequence.
+
+  9. p_sequencer gives the virtual sequence access to the
+     real sequencers.
+
+  10. Individual sequences are started using start().
+
+  11. The virtual sequence can start sequences sequentially
+      or coordinate them concurrently.
+
+  12. Virtual sequences are especially useful when multiple
+      agents and stimulus coordination are required.
+
+
+  ============================================================
+                    FINAL PICTURE
+  ============================================================
+
+                         TEST
+                           |
+                           | start()
+                           ↓
+                    VIRTUAL SEQUENCE
+                           |
+                           | start()
+                           ↓
+                    VIRTUAL SEQUENCER
+                       /          \
+                      /            \
+                     ↓              ↓
+              APB SEQUENCER    AHB SEQUENCER
+                     ↓              ↓
+                APB DRIVER      AHB DRIVER
+                     ↓              ↓
+                  APB DUT         AHB DUT
+
+
+  Remember:
+
+      Virtual Sequence
+          → controls multiple sequences
+
+      Virtual Sequencer
+          → provides access to multiple real sequencers
+
+      p_sequencer
+          → gives the virtual sequence access to the virtual
+            sequencer
+
+
+  ============================================================
+*/
