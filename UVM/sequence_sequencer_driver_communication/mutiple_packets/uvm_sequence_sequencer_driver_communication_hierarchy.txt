@@ -1,0 +1,1284 @@
+/*
+  ============================================================
+                  UVM COMPONENTS AND OBJECTS
+  ============================================================
+
+  UVM contains two important types of classes:
+
+      1. UVM COMPONENTS
+      2. UVM OBJECTS
+
+  Understanding the difference is important because the
+  classes in a UVM testbench do not all behave in the same way.
+
+  In this example:
+
+      test
+      env
+      agent
+      sequencer
+      driver
+
+  are UVM COMPONENTS.
+
+  Whereas:
+
+      sequence
+      sequence_item
+
+  are UVM OBJECTS.
+
+
+  ============================================================
+  1. UVM COMPONENT
+  ============================================================
+
+  A UVM component is a class that forms part of the UVM
+  testbench hierarchy.
+
+  Components have:
+
+      - a name
+      - a parent
+      - a position in the UVM hierarchy
+      - UVM phases such as build_phase(), connect_phase(),
+        run_phase(), etc.
+
+  Examples:
+
+      uvm_test
+      uvm_env
+      uvm_agent
+      uvm_driver
+      uvm_monitor
+      uvm_sequencer
+
+
+  Example:
+
+      class driver extends uvm_driver #(seq_item);
+
+      class agent extends uvm_agent;
+
+      class env extends uvm_env;
+
+      class test extends uvm_test;
+
+
+  These classes are components because they are derived from
+  uvm_component or one of its derived classes.
+
+
+  ============================================================
+  2. UVM OBJECT
+  ============================================================
+
+  A UVM object is a class that does not form part of the
+  component hierarchy.
+
+  Objects are generally used to represent data, transactions,
+  sequences, and other temporary or reusable objects.
+
+  Examples:
+
+      uvm_sequence_item
+      uvm_sequence
+      transaction classes
+
+
+  In your code:
+
+      class seq_item extends uvm_sequence_item;
+
+      class seq extends uvm_sequence #(seq_item);
+
+  Both are UVM objects.
+
+
+  ============================================================
+  3. COMPONENT VS OBJECT
+  ============================================================
+
+  The main difference is:
+
+      COMPONENT
+          → part of UVM hierarchy
+
+      OBJECT
+          → not part of UVM component hierarchy
+
+
+  ------------------------------------------------------------
+  COMPONENT
+  ------------------------------------------------------------
+
+      Has:
+
+          name
+          parent
+          hierarchy
+          phases
+
+
+  Example:
+
+      driver_h
+
+
+  Full name:
+
+      uvm_test_top.env_h.agent_h.driver_h
+
+
+  ------------------------------------------------------------
+  OBJECT
+  ------------------------------------------------------------
+
+      Does not have a UVM component parent hierarchy.
+
+  Example:
+
+      seq
+
+  and:
+
+      seq_item
+
+
+  They are created and used by components/sequences but they
+  do not become children in the component hierarchy.
+
+
+  ============================================================
+  4. CONSTRUCTOR DIFFERENCE
+  ============================================================
+
+  UVM components normally have:
+
+      function new(
+          string name = "...",
+          uvm_component parent = null
+      );
+
+  Example:
+
+      function new(
+          string name = "driver",
+          uvm_component parent = null
+      );
+
+      super.new(name, parent);
+
+
+  The component needs both:
+
+      name
+      parent
+
+
+  because it is part of the component hierarchy.
+
+
+  ------------------------------------------------------------
+  OBJECT CONSTRUCTOR
+  ------------------------------------------------------------
+
+  UVM objects normally have:
+
+      function new(string name = "...");
+
+  Example:
+
+      function new(string name = "seq_item");
+
+      super.new(name);
+
+
+  An object does not have a component parent.
+
+
+  Therefore:
+
+      COMPONENT
+          new(name, parent)
+
+      OBJECT
+          new(name)
+
+
+  ============================================================
+  5. COMPONENT HIERARCHY IN YOUR CODE
+  ============================================================
+
+  Your testbench hierarchy is:
+
+      uvm_test_top
+          |
+          └── env_h
+               |
+               └── agent_h
+                    |
+                    ├── seqr_h
+                    |
+                    └── driver_h
+
+
+  Class types:
+
+      uvm_test_top       → test
+      env_h              → env
+      agent_h            → agent
+      seqr_h             → seqr
+      driver_h           → driver
+
+
+  Therefore:
+
+      uvm_test_top
+          |
+          +-- env_h
+               |
+               +-- agent_h
+                    |
+                    +-- seqr_h
+                    |
+                    +-- driver_h
+
+
+  ============================================================
+  6. HOW THE COMPONENT HIERARCHY IS CREATED
+  ============================================================
+
+  In test:
+
+      env_h = env::type_id::create("env_h", this);
+
+
+  Here:
+
+      this
+        → test
+
+  Therefore env_h becomes a child of test.
+
+
+      uvm_test_top
+          |
+          └── env_h
+
+
+  ------------------------------------------------------------
+
+  In env:
+
+      agent_h =
+          agent::type_id::create("agent_h", this);
+
+
+  Here:
+
+      this
+        → env_h
+
+
+  Therefore:
+
+      uvm_test_top
+          |
+          └── env_h
+               |
+               └── agent_h
+
+
+  ------------------------------------------------------------
+
+  In agent:
+
+      driver_h =
+          driver::type_id::create("driver_h", this);
+
+      seqr_h =
+          seqr::type_id::create("seqr_h", this);
+
+
+  Here:
+
+      this
+        → agent_h
+
+
+  Therefore:
+
+      uvm_test_top
+          |
+          └── env_h
+               |
+               └── agent_h
+                    |
+                    ├── driver_h
+                    |
+                    └── seqr_h
+
+
+  ============================================================
+  7. WHY "this" IS IMPORTANT
+  ============================================================
+
+  Consider:
+
+      env_h = env::type_id::create("env_h", this);
+
+
+  The:
+
+      "env_h"
+
+  specifies the name of the component.
+
+  The:
+
+      this
+
+  specifies its parent.
+
+
+  Therefore:
+
+      name   → env_h
+      parent → test
+
+
+  Similarly:
+
+      agent_h =
+          agent::type_id::create("agent_h", this);
+
+
+      name   → agent_h
+      parent → env_h
+
+
+  And:
+
+      driver_h =
+          driver::type_id::create("driver_h", this);
+
+
+      name   → driver_h
+      parent → agent_h
+
+
+  This is how the hierarchy is formed.
+
+
+  ============================================================
+  8. WHY SEQUENCE IS NOT IN THE COMPONENT HIERARCHY
+  ============================================================
+
+  Your test contains:
+
+      seq seq_h;
+
+
+  and creates it using:
+
+      seq_h =
+          seq::type_id::create("seq", this);
+
+
+  Even though "this" is passed to create(), sequence is still
+  a UVM object and not a uvm_component child.
+
+  The important point is that sequence creation is different
+  from component hierarchy creation.
+
+  A sequence does not participate in component phases such as:
+
+      build_phase()
+      connect_phase()
+      run_phase()
+
+
+  Instead, a sequence has its own sequence execution methods,
+  such as:
+
+      body()
+
+
+  ============================================================
+  9. SEQUENCE OBJECT
+  ============================================================
+
+  Your sequence is:
+
+      class seq extends uvm_sequence #(seq_item);
+
+
+  It is a UVM object.
+
+  It contains:
+
+      task body();
+
+          ...
+
+      endtask
+
+
+  The sequence is started using:
+
+      seq_h.start(env_h.agent_h.seqr_h);
+
+
+  This starts the sequence on the sequencer.
+
+
+  The sequence then executes:
+
+      body()
+
+
+  Therefore:
+
+      test
+       |
+       | start()
+       ↓
+      sequence
+       |
+       | body()
+       ↓
+      sequence items
+
+
+  ============================================================
+  10. SEQUENCE ITEM OBJECT
+  ============================================================
+
+  Your sequence item is:
+
+      class seq_item extends uvm_sequence_item;
+
+
+  It represents the transaction/data that is transferred from
+  the sequence toward the driver.
+
+  It contains:
+
+      rand int addr;
+      rand int data;
+
+
+  Therefore a sequence item represents the information that
+  the driver needs to process.
+
+
+  Example:
+
+      req = seq_item::type_id::create("req");
+
+
+  Then:
+
+      req.randomize();
+
+
+  The sequence item contains the randomized transaction data.
+
+
+  ============================================================
+  11. SEQUENCE VS SEQUENCE ITEM
+  ============================================================
+
+  These two concepts must not be confused.
+
+
+  SEQUENCE
+  ------------------------------------------------------------
+
+  The sequence generates sequence items.
+
+      seq
+       |
+       +-- req
+       +-- req
+       +-- req
+
+
+  SEQUENCE ITEM
+  ------------------------------------------------------------
+
+  The sequence item represents one transaction.
+
+      req
+       |
+       +-- addr
+       +-- data
+
+
+  Simple understanding:
+
+      Sequence
+          → generates transactions
+
+      Sequence item
+          → represents one transaction
+
+
+  ============================================================
+  12. COMPONENT PHASES VS SEQUENCE EXECUTION
+  ============================================================
+
+  Components participate in UVM phases.
+
+  Example:
+
+      driver
+
+          build_phase()
+          connect_phase()
+          run_phase()
+
+
+  Your agent also has:
+
+      build_phase()
+      connect_phase()
+
+
+  Your environment has:
+
+      build_phase()
+
+
+  Your test has:
+
+      build_phase()
+      run_phase()
+
+
+  ------------------------------------------------------------
+  SEQUENCE
+  ------------------------------------------------------------
+
+  Sequence does not have these UVM component phases.
+
+  Instead it has:
+
+      body()
+
+
+  It executes when:
+
+      seq_h.start(seqr_h);
+
+
+  is called.
+
+
+  ============================================================
+  13. COMPONENT CREATION
+  ============================================================
+
+  Components are created using:
+
+      type_id::create("name", parent)
+
+
+  Example:
+
+      driver_h =
+          driver::type_id::create("driver_h", this);
+
+
+  Because driver is a component, it needs:
+
+      name
+      parent
+
+
+  ------------------------------------------------------------
+  OBJECT CREATION
+  ------------------------------------------------------------
+
+  Objects are also commonly created using the factory:
+
+      type_id::create("name")
+
+
+  Example:
+
+      req =
+          seq_item::type_id::create("req");
+
+
+  The sequence item does not need a component parent.
+
+
+  ============================================================
+  14. FACTORY REGISTRATION
+  ============================================================
+
+  Components use:
+
+      `uvm_component_utils(class_name)
+
+
+  Example:
+
+      `uvm_component_utils(driver)
+
+      `uvm_component_utils(agent)
+
+      `uvm_component_utils(env)
+
+      `uvm_component_utils(test)
+
+
+  Objects use:
+
+      `uvm_object_utils(class_name)
+
+
+  Example:
+
+      `uvm_object_utils(seq)
+
+      `uvm_object_utils(seq_item)
+
+
+  Therefore:
+
+      COMPONENT
+          → uvm_component_utils
+
+      OBJECT
+          → uvm_object_utils
+
+
+  ============================================================
+  15. WHY DIFFERENT MACROS ARE USED
+  ============================================================
+
+  UVM needs to know whether the registered class is a
+  component or an object.
+
+  Component:
+
+      `uvm_component_utils(driver)
+
+
+  Object:
+
+      `uvm_object_utils(seq_item)
+
+
+  This allows the factory to create the class correctly.
+
+
+  ============================================================
+  16. SEQUENCE AND SEQUENCER ARE DIFFERENT
+  ============================================================
+
+  These names are similar but their roles are different.
+
+
+  SEQUENCE
+  ------------------------------------------------------------
+
+      seq
+
+  It generates sequence items.
+
+      seq
+       |
+       +-- req
+       +-- req
+
+
+  SEQUENCER
+  ------------------------------------------------------------
+
+      seqr
+
+  It is a UVM component that manages the transfer of sequence
+  items between sequences and the driver.
+
+
+  Therefore:
+
+      Sequence
+          → generates items
+
+      Sequencer
+          → provides/manages items toward the driver
+
+
+  ============================================================
+  17. DRIVER IS A COMPONENT
+  ============================================================
+
+  Your driver:
+
+      class driver extends uvm_driver #(seq_item);
+
+
+  Therefore driver is a component.
+
+  It has:
+
+      build_phase()
+      run_phase()
+
+
+  It receives sequence items using:
+
+      seq_item_port.get_next_item(seq_item_h);
+
+
+  and tells the sequencer that processing is complete using:
+
+      seq_item_port.item_done();
+
+
+  Therefore:
+
+      Sequence
+          ↓
+      Sequencer
+          ↓
+      Driver
+
+
+  ============================================================
+  18. AGENT IS A COMPONENT THAT CONTAINS COMPONENTS
+  ============================================================
+
+  Your agent contains:
+
+      seqr_h
+      driver_h
+
+
+  Therefore:
+
+      agent_h
+          |
+          +-- seqr_h
+          |
+          +-- driver_h
+
+
+  The agent groups related UVM components together.
+
+
+  ============================================================
+  19. ENVIRONMENT IS A COMPONENT THAT CONTAINS AGENTS
+  ============================================================
+
+  Your environment contains:
+
+      agent_h
+
+
+  Therefore:
+
+      env_h
+          |
+          └── agent_h
+
+
+  The environment is used to group the components that make
+  up the verification environment.
+
+
+  ============================================================
+  20. TEST IS THE TOP-LEVEL UVM COMPONENT
+  ============================================================
+
+  Your test extends:
+
+      uvm_test
+
+
+  It creates:
+
+      env_h
+      seq_h
+
+
+  The test starts the sequence:
+
+      seq_h.start(
+          env_h.agent_h.seqr_h
+      );
+
+
+  Therefore the test controls the overall test execution.
+
+
+  ============================================================
+  21. COMPLETE COMPONENT AND OBJECT VIEW
+  ============================================================
+
+  COMPONENT HIERARCHY:
+
+      uvm_test_top
+          |
+          └── env_h
+               |
+               └── agent_h
+                    |
+                    ├── seqr_h
+                    |
+                    └── driver_h
+
+
+  OBJECTS USED:
+
+      seq
+       |
+       +-- seq_item
+       |
+       +-- seq_item
+
+
+  Therefore:
+
+      COMPONENTS
+          → form the UVM testbench structure
+
+      OBJECTS
+          → are used for transactions, sequences and other
+            data-related operations
+
+
+  ============================================================
+  22. COMPLETE EXECUTION FLOW
+  ============================================================
+
+  Step 1:
+
+      run_test("test");
+
+  UVM creates the test.
+
+
+  Step 2:
+
+      test.build_phase()
+
+  creates:
+
+      env_h
+      seq_h
+
+
+  Step 3:
+
+      env_h.build_phase()
+
+  creates:
+
+      agent_h
+
+
+  Step 4:
+
+      agent_h.build_phase()
+
+  creates:
+
+      driver_h
+      seqr_h
+
+
+  Step 5:
+
+      agent_h.connect_phase()
+
+  connects:
+
+      driver_h.seq_item_port
+             |
+             ↓
+      seqr_h.seq_item_export
+
+
+  Step 6:
+
+      test.run_phase()
+
+  starts:
+
+      seq_h.start(
+          env_h.agent_h.seqr_h
+      )
+
+
+  Step 7:
+
+      seq.body()
+
+  starts executing.
+
+
+  Step 8:
+
+      seq_item::type_id::create("req")
+
+  creates a sequence item.
+
+
+  Step 9:
+
+      start_item(req)
+
+      req.randomize()
+
+      finish_item(req)
+
+
+  Step 10:
+
+      driver calls:
+
+      seq_item_port.get_next_item(seq_item_h);
+
+
+  Step 11:
+
+      Driver receives the sequence item.
+
+
+  Step 12:
+
+      Driver performs its driver logic.
+
+
+  Step 13:
+
+      driver calls:
+
+      seq_item_port.item_done();
+
+
+  ============================================================
+  23. COMPONENT HIERARCHY VS TRANSACTION FLOW
+  ============================================================
+
+  These are two different things.
+
+
+  ------------------------------------------------------------
+  COMPONENT HIERARCHY
+  ------------------------------------------------------------
+
+      test
+       |
+      env
+       |
+      agent
+      /   \
+    seqr  driver
+
+
+  This describes:
+
+      WHO CONTAINS WHOM
+
+
+  ------------------------------------------------------------
+  TRANSACTION FLOW
+  ------------------------------------------------------------
+
+      sequence
+          |
+          ↓
+      sequencer
+          |
+          ↓
+       driver
+
+
+  This describes:
+
+      WHERE THE SEQUENCE ITEM MOVES
+
+
+  These two diagrams should not be confused.
+
+
+  ============================================================
+  24. IMPORTANT: "PARENT" DOES NOT MEAN DATA FLOW
+  ============================================================
+
+  Consider:
+
+      driver_h =
+          driver::type_id::create("driver_h", this);
+
+
+  Here:
+
+      this → agent
+
+
+  This means:
+
+      agent is the parent of driver_h
+
+
+  It does NOT mean:
+
+      agent sends transactions to driver.
+
+
+  The transaction communication is established separately:
+
+      driver_h.seq_item_port.connect(
+          seqr_h.seq_item_export
+      );
+
+
+  Therefore:
+
+      parent-child relationship
+          ≠
+      transaction communication
+
+
+  ============================================================
+  25. IMPORTANT: "CREATED UNDER" VS "STARTED ON"
+  ============================================================
+
+  Your sequence is created by the test:
+
+      seq_h =
+          seq::type_id::create("seq", this);
+
+
+  But the sequence is started on the sequencer:
+
+      seq_h.start(env_h.agent_h.seqr_h);
+
+
+  These are two different concepts.
+
+      create()
+          → creates the sequence object
+
+      start()
+          → starts sequence execution on a sequencer
+
+
+  ============================================================
+  26. WHY THE SEQUENCE NEEDS A SEQUENCER
+  ============================================================
+
+  The sequence generates sequence items.
+
+  But the driver communicates with the sequencer.
+
+  Therefore the sequence needs to execute through a sequencer
+  to participate in the sequence-item transfer mechanism.
+
+  Your flow is:
+
+      sequence
+          |
+          | start()
+          ↓
+      sequencer
+          |
+          | sequence item transfer
+          ↓
+      driver
+
+
+  ============================================================
+  27. WHY THE SEQUENCE ITEM DOES NOT HAVE A PARENT
+  ============================================================
+
+  Your sequence item is created as:
+
+      req =
+          seq_item::type_id::create("req");
+
+
+  It is an object, not a component.
+
+  Therefore it does not become:
+
+      uvm_test_top.seq.req
+
+
+  as a component hierarchy child.
+
+  It is simply an object used by the sequence during
+  transaction generation.
+
+
+  ============================================================
+  28. WHY COMPONENTS HAVE PARENT-HANDLE
+  ============================================================
+
+  Components form a hierarchy.
+
+  Therefore a component needs to know:
+
+      Who is my parent?
+
+
+  Example:
+
+      driver_h
+
+  has parent:
+
+      agent_h
+
+
+  agent_h has parent:
+
+      env_h
+
+
+  env_h has parent:
+
+      uvm_test_top
+
+
+  This produces:
+
+      uvm_test_top.env_h.agent_h.driver_h
+
+
+  Objects do not form this component hierarchy, so they do not
+  require a uvm_component parent.
+
+
+  ============================================================
+  29. get_name() AND get_full_name()
+  ============================================================
+
+  Because components belong to a hierarchy, UVM can identify
+  them by name and full hierarchy.
+
+
+  For driver:
+
+      get_name()
+
+  gives:
+
+      driver_h
+
+
+  get_full_name()
+
+  gives:
+
+      uvm_test_top.env_h.agent_h.driver_h
+
+
+  For agent:
+
+      get_name()
+          → agent_h
+
+      get_full_name()
+          → uvm_test_top.env_h.agent_h
+
+
+  This is useful when debugging a large UVM testbench.
+
+
+  ============================================================
+  30. COMPONENT VS OBJECT SUMMARY
+  ============================================================
+
+  COMPONENT:
+
+      uvm_component
+          |
+          +-- uvm_test
+          +-- uvm_env
+          +-- uvm_agent
+          +-- uvm_driver
+          +-- uvm_sequencer
+          +-- uvm_monitor
+
+      Has:
+          name
+          parent
+          hierarchy
+          UVM phases
+
+      Factory macro:
+
+          `uvm_component_utils
+
+
+  OBJECT:
+
+      uvm_object
+          |
+          +-- uvm_sequence
+          +-- uvm_sequence_item
+          +-- transaction classes
+
+      Has:
+          object name
+
+      Does not form the UVM component hierarchy.
+
+      Factory macro:
+
+          `uvm_object_utils
+
+
+  ============================================================
+  31. KEY POINTS
+  ============================================================
+
+  UVM COMPONENT
+      → Forms the UVM testbench hierarchy.
+
+  UVM OBJECT
+      → Used for sequences, sequence items, transactions and
+        other objects.
+
+  COMPONENT
+      → Has name and parent.
+
+  OBJECT
+      → Does not have a UVM component parent.
+
+  COMPONENT
+      → Participates in UVM component phases.
+
+  SEQUENCE
+      → Executes through body() when started.
+
+  COMPONENT MACRO
+      → `uvm_component_utils
+
+  OBJECT MACRO
+      → `uvm_object_utils
+
+  COMPONENT CREATION
+      → type_id::create("name", parent)
+
+  OBJECT CREATION
+      → type_id::create("name")
+
+  COMPONENT HIERARCHY
+      → test → env → agent → sequencer/driver
+
+  TRANSACTION FLOW
+      → sequence → sequencer → driver
+
+
+  ============================================================
+*/
