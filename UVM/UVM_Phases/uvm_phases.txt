@@ -1,0 +1,626 @@
+/*
+  ============================================================
+                         UVM PHASES
+  ============================================================
+
+  UVM phases provide a predefined execution order for building,
+  connecting, running, checking, and finishing a UVM testbench.
+
+  Every UVM component can implement these phases according to
+  the work that needs to be performed in that phase.
+
+
+  1. UVM PHASE FLOW
+  ------------------------------------------------------------
+
+  build_phase
+       ↓
+  connect_phase
+       ↓
+  end_of_elaboration_phase
+       ↓
+  start_of_simulation_phase
+       ↓
+  run_phase
+       ↓
+  extract_phase
+       ↓
+  check_phase
+       ↓
+  report_phase
+       ↓
+  final_phase
+
+
+  2. BUILD PHASE
+  ------------------------------------------------------------
+
+  function void build_phase(uvm_phase phase);
+
+  The build phase is used to create and configure the UVM
+  testbench components.
+
+  Examples:
+
+    - Create environment
+    - Create agent
+    - Create driver
+    - Create monitor
+    - Get configuration information
+
+  The build phase executes in TOP-DOWN order.
+
+  Example:
+
+    test
+      ↓
+    env
+      ↓
+    agent
+      ↓
+    driver / monitor
+
+
+  3. CONNECT PHASE
+  ------------------------------------------------------------
+
+  function void connect_phase(uvm_phase phase);
+
+  The connect phase is used to connect the TLM ports,
+  exports, and other communication mechanisms between
+  UVM components.
+
+  Example:
+
+    monitor.analysis_port
+            ↓
+        scoreboard
+
+  The connect phase executes in BOTTOM-UP order.
+
+
+  4. END OF ELABORATION PHASE
+  ------------------------------------------------------------
+
+  function void end_of_elaboration_phase(uvm_phase phase);
+
+  This phase is used after the UVM component hierarchy has
+  been created and connections have been completed.
+
+  It can be used to:
+
+    - Check the testbench structure
+    - Display the component hierarchy
+    - Perform final elaboration-time checks
+
+  This phase executes in BOTTOM-UP order.
+
+
+  5. START OF SIMULATION PHASE
+  ------------------------------------------------------------
+
+  function void start_of_simulation_phase(uvm_phase phase);
+
+  This phase is executed immediately before the run phase.
+
+  It can be used for:
+
+    - Final initialization
+    - Printing simulation information
+    - Setting up information required before simulation starts
+
+  This phase executes in BOTTOM-UP order.
+
+
+  6. RUN PHASE
+  ------------------------------------------------------------
+
+  task run_phase(uvm_phase phase);
+
+  The run phase is the main TIME-CONSUMING phase of UVM.
+
+  It is used for activities such as:
+
+    - Generating transactions
+    - Driving transactions
+    - Monitoring DUT signals
+    - Waiting for events
+    - Running the actual test
+
+  Unlike the function-based phases, run_phase is a TASK and
+  can contain timing controls such as:
+
+    #10;
+    @(posedge clk);
+    wait(...);
+
+
+  All components enter the run phase concurrently.
+
+  Example:
+
+    test
+    env
+    agent
+    driver
+    monitor
+
+  Their run_phase methods can execute at the same simulation
+  time.
+
+
+  7. OBJECTIONS IN RUN PHASE
+  ------------------------------------------------------------
+
+  The run phase does not simply end because a component's
+  run_phase task has finished.
+
+  UVM uses objections to control when the run phase should
+  end.
+
+  Example:
+
+    phase.raise_objection(this);
+
+    // Test activity
+    #10;
+
+    phase.drop_objection(this);
+
+
+  raise_objection()
+  → Tells UVM that the test still has work to do.
+
+  drop_objection()
+  → Tells UVM that the component has finished its required work.
+
+  When the required objections are dropped, the run phase can
+  finish and UVM moves to the following phases.
+
+
+  8. EXTRACT PHASE
+  ------------------------------------------------------------
+
+  function void extract_phase(uvm_phase phase);
+
+  The extract phase is generally used to extract final
+  information from components after simulation activity
+  has completed.
+
+  Example:
+
+    - Get final scoreboard results
+    - Collect final statistics
+
+
+  9. CHECK PHASE
+  ------------------------------------------------------------
+
+  function void check_phase(uvm_phase phase);
+
+  The check phase is used to check the final state of the
+  testbench and determine whether the expected results were
+  obtained.
+
+  Example:
+
+    - Check for errors
+    - Check whether expected transactions were received
+    - Check scoreboard results
+
+
+  10. REPORT PHASE
+  ------------------------------------------------------------
+
+  function void report_phase(uvm_phase phase);
+
+  The report phase is used to report the final results of
+  the test.
+
+  Example:
+
+    - Number of errors
+    - Number of warnings
+    - Number of passed transactions
+    - Final test status
+
+
+  11. FINAL PHASE
+  ------------------------------------------------------------
+
+  function void final_phase(uvm_phase phase);
+
+  The final phase is the last UVM phase.
+
+  It can be used for final cleanup or simulator-specific
+  shutdown activities.
+
+
+  12. FUNCTION PHASES VS TASK PHASE
+  ------------------------------------------------------------
+
+  Function-based phases:
+
+    build_phase
+    connect_phase
+    end_of_elaboration_phase
+    start_of_simulation_phase
+    extract_phase
+    check_phase
+    report_phase
+    final_phase
+
+  These phases do not consume simulation time.
+
+  Task-based phase:
+
+    run_phase
+
+  run_phase can consume simulation time and can contain
+  timing controls.
+
+
+  ============================================================
+                       UVM FACTORY
+  ============================================================
+
+  13. WHAT IS UVM FACTORY?
+  ------------------------------------------------------------
+
+  The UVM factory is a mechanism used to create UVM objects
+  and components through their registered types.
+
+  Instead of directly creating a component using:
+
+    driver_h = new("driver_h", this);
+
+  UVM normally creates it using:
+
+    driver_h = driver::type_id::create("driver_h", this);
+
+
+  14. WHY IS FACTORY REGISTRATION REQUIRED?
+  ------------------------------------------------------------
+
+  For the UVM factory to know about a user-defined class,
+  the class must be registered with the factory.
+
+  Example:
+
+    class driver extends uvm_driver;
+      `uvm_component_utils(driver)
+    endclass
+
+  The macro registers the driver class with the UVM factory.
+
+  Without registration, the factory cannot create the class
+  through:
+
+    driver::type_id::create(...);
+
+
+  15. FACTORY REGISTRATION MACRO
+  ------------------------------------------------------------
+
+    `uvm_component_utils(driver)
+
+  This macro registers the component class with the UVM
+  factory and provides the required type information for
+  factory-based creation.
+
+  It also provides the class with a type_id used by the
+  factory.
+
+
+  16. WHY USE THE FACTORY?
+  ------------------------------------------------------------
+
+  The major advantage is FACTORY OVERRIDE.
+
+  A component can be created using its registered type, while
+  later allowing the testbench to replace that type with
+  another compatible type without changing the original
+  component creation code.
+
+  This makes the testbench more reusable and configurable.
+
+
+  ============================================================
+                    UVM PACKAGE AND MACROS
+  ============================================================
+
+  17. `include "uvm_macros.svh"
+  ------------------------------------------------------------
+
+    `include "uvm_macros.svh"
+
+  This is a Verilog/SystemVerilog preprocessor directive.
+
+  It includes the UVM macro definitions in the source file.
+
+  It is required when we use UVM macros such as:
+
+    `uvm_component_utils(driver)
+    `uvm_object_utils(transaction)
+    `uvm_info(...)
+    `uvm_error(...)
+    `uvm_fatal(...)
+
+
+  18. import uvm_pkg::*;
+  ------------------------------------------------------------
+
+    import uvm_pkg::*;
+
+  This imports the classes, types, functions, and other
+  declarations defined inside the UVM package into the
+  current scope.
+
+  Therefore we can write:
+
+    uvm_component
+    uvm_driver
+    uvm_monitor
+    uvm_agent
+    uvm_env
+    uvm_test
+    uvm_phase
+
+  instead of writing their package-qualified names.
+
+
+  19. `include VS import
+  ------------------------------------------------------------
+
+  `include "uvm_macros.svh"
+
+  → Includes UVM macro definitions.
+
+  import uvm_pkg::*;
+
+  → Makes UVM package declarations available in the current
+    scope.
+
+  They perform DIFFERENT jobs.
+
+  `include → Preprocessor inclusion
+  import   → Package import
+
+
+  ============================================================
+                    TYPE_ID::CREATE()
+  ============================================================
+
+  20. COMPONENT CREATION
+  ------------------------------------------------------------
+
+  Example from the agent:
+
+    driver_h = driver::type_id::create("driver_h", this);
+
+
+  This creates a driver component through the UVM factory.
+
+
+  21. BREAKING DOWN THE STATEMENT
+  ------------------------------------------------------------
+
+    driver_h
+       ↓
+    Handle used to access the driver object.
+
+    driver
+       ↓
+    The driver class.
+
+    type_id
+       ↓
+    Factory registration/type information provided by the
+    `uvm_component_utils(driver) macro.
+
+    create(...)
+       ↓
+    Requests the UVM factory to create the component.
+
+    "driver_h"
+       ↓
+    Instance name of the component.
+
+    this
+       ↓
+    Parent component.
+
+  Therefore:
+
+    driver_h = driver::type_id::create("driver_h", this);
+
+  means:
+
+    Create a driver component named "driver_h" with the
+    current component as its parent, and store the resulting
+    handle in driver_h.
+
+
+  22. WHY NOT SIMPLY USE new()?
+  ------------------------------------------------------------
+
+  Direct construction:
+
+    driver_h = new("driver_h", this);
+
+  Factory-based construction:
+
+    driver_h = driver::type_id::create("driver_h", this);
+
+  Direct new():
+
+    - Creates the specified class directly.
+    - Does not provide factory override capability.
+
+  type_id::create():
+
+    - Creates through the UVM factory.
+    - Allows factory overrides.
+    - Makes the testbench more reusable and configurable.
+
+  Therefore, UVM components are normally created using
+  type_id::create().
+
+
+  ============================================================
+                  UVM COMPONENT HIERARCHY
+  ============================================================
+
+  23. COMPONENT CREATION IN YOUR EXAMPLE
+  ------------------------------------------------------------
+
+  run_test("test")
+        ↓
+      test
+        ↓
+      env
+        ↓
+      agent
+       ↙  ↘
+  driver  monitor
+
+
+  The hierarchy is created during build_phase.
+
+  test build_phase
+        ↓
+  creates env
+
+  env build_phase
+        ↓
+  creates agent
+
+  agent build_phase
+        ↓
+  creates driver and monitor
+
+
+  ============================================================
+                       UVM CONSTRUCTOR
+  ============================================================
+
+  24. new()
+  ------------------------------------------------------------
+
+  Example:
+
+    function new(string name = "driver",
+                 uvm_component parent = null);
+
+      super.new(name, parent);
+
+    endfunction
+
+  The constructor is used to construct the component and
+  establish its name and parent in the UVM component hierarchy.
+
+  name
+  → Name of the component.
+
+  parent
+  → Parent component in the UVM hierarchy.
+
+  super.new(name, parent)
+  → Calls the constructor of the parent UVM component.
+
+
+  ============================================================
+                       run_test()
+  ============================================================
+
+  25. run_test("test")
+  ------------------------------------------------------------
+
+  Example:
+
+    initial begin
+      run_test("test");
+    end
+
+  run_test() starts the UVM test.
+
+  "test"
+  → Specifies the name of the test to run.
+
+  UVM uses the factory to create the test and then starts
+  the UVM phase mechanism.
+
+  Therefore the test class must be registered with the factory:
+
+    `uvm_component_utils(test)
+
+
+  ============================================================
+                         SUPER.PHASE
+  ============================================================
+
+  26. super.build_phase(phase)
+  ------------------------------------------------------------
+
+  Example:
+
+    function void build_phase(uvm_phase phase);
+      super.build_phase(phase);
+      ...
+    endfunction
+
+  super.build_phase(phase) calls the implementation of the
+  same phase in the parent class.
+
+  The same concept applies to:
+
+    super.connect_phase(phase);
+    super.run_phase(phase);
+    super.check_phase(phase);
+    ...
+
+  Calling the parent implementation allows the inherited UVM
+  component behavior to execute.
+
+
+  ============================================================
+                       KEY POINTS
+  ============================================================
+
+  27. IMPORTANT POINTS TO REMEMBER
+  ------------------------------------------------------------
+
+  1. UVM phases define the execution flow of a UVM testbench.
+
+  2. build_phase is mainly used to create components.
+
+  3. connect_phase is mainly used to connect TLM components.
+
+  4. run_phase is used for time-consuming simulation activity.
+
+  5. run_phase is a task; the other common phases shown here
+     are functions.
+
+  6. Objections control when the run phase can finish.
+
+  7. `uvm_component_utils() registers a component with the
+     UVM factory.
+
+  8. type_id::create() creates a component through the factory.
+
+  9. Factory-based creation provides factory override support.
+
+  10. `include "uvm_macros.svh" provides UVM macro definitions.
+
+  11. import uvm_pkg::* makes UVM package declarations
+      available in the current scope.
+
+  12. run_test("test") starts the UVM test and phase execution.
+
+  13. super.new() calls the parent class constructor.
+
+  14. super.<phase>() calls the parent implementation of that
+      phase.
+
+  ============================================================
+*/
