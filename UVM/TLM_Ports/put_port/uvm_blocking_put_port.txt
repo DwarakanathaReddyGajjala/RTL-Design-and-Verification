@@ -1,0 +1,433 @@
+/*
+  ============================================================
+                 UVM BLOCKING PUT PORT / IMP
+  ============================================================
+
+  UVM TLM (Transaction-Level Modeling) ports are used for
+  communication between UVM components.
+
+  The blocking put interface is used when one component sends
+  a transaction to another component through the put() method.
+
+
+  1. BASIC COMMUNICATION
+  ------------------------------------------------------------
+
+        compa
+          |
+          | producer.put(seq_item)
+          ↓
+        compb
+          |
+          | put()
+          ↓
+      Receives transaction
+
+
+  compa acts as the PRODUCER.
+
+  compb acts as the CONSUMER.
+
+
+  ============================================================
+                    SEQUENCE ITEM
+  ============================================================
+
+  2. uvm_sequence_item
+  ------------------------------------------------------------
+
+  class seq_item extends uvm_sequence_item;
+
+  A sequence item is used to represent a transaction in UVM.
+
+  Example:
+
+    rand int addr;
+    rand int data;
+
+  These fields represent the transaction data that is passed
+  from one component to another.
+
+
+  3. OBJECT FACTORY REGISTRATION
+  ------------------------------------------------------------
+
+    `uvm_object_utils_begin(seq_item)
+
+      `uvm_field_int(addr,UVM_DEFAULT);
+      `uvm_field_int(data,UVM_DEFAULT);
+
+    `uvm_object_utils_end
+
+  The sequence item is registered with the UVM factory.
+
+  The field macros register the class properties with the
+  UVM automation mechanism.
+
+  In this example:
+
+    addr → registered field
+    data → registered field
+
+  This also allows the fields to be included when using UVM
+  automation such as print, copy, compare, record, and other
+  supported operations.
+
+
+  ============================================================
+                 BLOCKING PUT PORT
+  ============================================================
+
+  4. uvm_blocking_put_port
+  ------------------------------------------------------------
+
+  Example:
+
+    uvm_blocking_put_port #(seq_item) producer;
+
+  A blocking put port is used by a component to SEND a
+  transaction to another component.
+
+  The port provides the put() interface to the producer.
+
+  In this example:
+
+    compa → producer
+
+
+  5. CREATING THE PORT
+  ------------------------------------------------------------
+
+    producer = new("producer", this);
+
+  This creates the blocking put port inside compa.
+
+  The port is later connected to the consumer's implementation
+  port during connect_phase.
+
+
+  ============================================================
+              BLOCKING PUT IMPLEMENTATION
+  ============================================================
+
+  6. uvm_blocking_put_imp
+  ------------------------------------------------------------
+
+  Example:
+
+    uvm_blocking_put_imp #(seq_item, compb) consumer;
+
+  The blocking put implementation is used by the receiving
+  component to IMPLEMENT the put() method.
+
+  In this example:
+
+    compb → consumer
+
+
+  The second parameter:
+
+    compb
+
+  specifies the component/class that provides the implementation
+  of the put() method.
+
+
+  7. PUT METHOD
+  ------------------------------------------------------------
+
+  The receiving component implements:
+
+    task put(seq_item seq_item_h);
+
+  This method is called when the producer sends a transaction
+  through the connected blocking put port.
+
+  Example:
+
+    task put(seq_item seq_item_h);
+      seq_item_h.print();
+    endtask
+
+  Therefore, compb receives the transaction inside its
+  put() method.
+
+
+  ============================================================
+                    PORT CONNECTION
+  ============================================================
+
+  8. CONNECTING PORT AND IMP
+  ------------------------------------------------------------
+
+  In test:
+
+    compa_h.producer.connect(compb_h.consumer);
+
+  This connects:
+
+    compa producer
+          ↓
+    compb consumer
+
+
+  After this connection, when compa executes:
+
+    producer.put(seq_item_h);
+
+  the call reaches:
+
+    compb.put(seq_item_h);
+
+
+  9. COMPLETE DATA FLOW
+  ------------------------------------------------------------
+
+  compa:
+
+    seq_item_h.randomize();
+            ↓
+    producer.put(seq_item_h);
+            ↓
+    producer
+            ↓
+    connect()
+            ↓
+    consumer
+            ↓
+    compb.put(seq_item_h);
+            ↓
+    seq_item_h.print();
+
+
+  ============================================================
+                    BLOCKING BEHAVIOR
+  ============================================================
+
+  10. WHY IS IT CALLED BLOCKING PUT?
+  ------------------------------------------------------------
+
+  The put() operation is a TASK.
+
+    task put(seq_item seq_item_h);
+
+  Therefore, the calling process can be blocked while the
+  put operation is being executed.
+
+  Example:
+
+    producer.put(seq_item_h);
+
+  The producer waits for the put() task to complete before
+  continuing with the next statement.
+
+
+  ============================================================
+                 PORT VS IMPLEMENTATION
+  ============================================================
+
+  11. DIFFERENCE
+  ------------------------------------------------------------
+
+  uvm_blocking_put_port
+      ↓
+  Used by the component that CALLS put().
+
+  uvm_blocking_put_imp
+      ↓
+  Used by the component that IMPLEMENTS put().
+
+
+  In this example:
+
+    compa
+      ↓
+    producer
+      ↓
+    CALLS put()
+
+    compb
+      ↓
+    consumer
+      ↓
+    IMPLEMENTS put()
+
+
+  ============================================================
+                     PORT INSTANTIATION
+  ============================================================
+
+  12. PORT DECLARATION VS INSTANTIATION
+  ------------------------------------------------------------
+
+  Declaration:
+
+    uvm_blocking_put_port #(seq_item) producer;
+
+  This declares the port.
+
+  Instantiation:
+
+    producer = new("producer", this);
+
+  This creates the port object.
+
+  Similarly:
+
+    uvm_blocking_put_imp #(seq_item, compb) consumer;
+
+  declares the implementation, and:
+
+    consumer = new("consumer", this);
+
+  creates the implementation object.
+
+
+  ============================================================
+                  TRANSACTION CREATION
+  ============================================================
+
+  13. FACTORY CREATION OF SEQUENCE ITEM
+  ------------------------------------------------------------
+
+  In compa:
+
+    seq_item_h =
+      seq_item::type_id::create("seq_item_h", this);
+
+  The sequence item is created through the UVM factory.
+
+  After creation:
+
+    seq_item_h.randomize();
+
+  randomizes the rand fields:
+
+    addr
+    data
+
+  The transaction is then sent using:
+
+    producer.put(seq_item_h);
+
+
+  ============================================================
+                       PRINT()
+  ============================================================
+
+  14. seq_item.print()
+  ------------------------------------------------------------
+
+    seq_item_h.print();
+
+  print() displays the registered fields of the sequence item.
+
+  In this example, the registered fields are:
+
+    addr
+    data
+
+  The field registration is provided by:
+
+    `uvm_field_int(addr,UVM_DEFAULT)
+    `uvm_field_int(data,UVM_DEFAULT)
+
+
+  ============================================================
+                    IMPORTANT CONCEPT
+  ============================================================
+
+  15. PORT AND IMP RELATIONSHIP
+  ------------------------------------------------------------
+
+  A port does not contain the implementation of put().
+
+  The implementation is provided by the imp.
+
+  Therefore:
+
+    PORT
+      ↓
+    Provides an interface for calling put()
+
+    IMP
+      ↓
+    Provides the implementation of put()
+
+
+  In this example:
+
+    compa
+      |
+      | uvm_blocking_put_port
+      |
+      | put(seq_item)
+      ↓
+    uvm_blocking_put_imp
+      |
+      ↓
+    compb.put(seq_item)
+
+
+  ============================================================
+                         KEY POINTS
+  ============================================================
+
+  16. INTERVIEW POINTS
+  ------------------------------------------------------------
+
+  1. UVM TLM ports provide communication between UVM
+     components.
+
+  2. uvm_blocking_put_port is used by the component that
+     sends a transaction.
+
+  3. uvm_blocking_put_imp is used by the component that
+     receives the transaction and implements put().
+
+  4. The producer calls put() through the port.
+
+  5. The consumer implements the put() method through the imp.
+
+  6. The port and imp are connected using connect().
+
+  7. put() is a task, so the blocking put operation can
+     consume simulation time and the caller waits for it
+     to complete.
+
+  8. The sequence item represents the transaction being
+     transferred.
+
+  9. rand fields can be randomized using randomize().
+
+  10. type_id::create() creates the sequence item through
+      the UVM factory.
+
+  11. `uvm_object_utils_begin/end registers the sequence item
+      with the UVM factory and enables field automation.
+
+  12. `uvm_field_int registers integer fields for UVM field
+      automation.
+
+  13. print() can be used to display the registered fields
+      of the sequence item.
+
+  14. In this example:
+
+        compa → Producer
+        compb → Consumer
+
+  15. The complete communication is:
+
+        compa
+          ↓
+        producer.put()
+          ↓
+        connect()
+          ↓
+        consumer
+          ↓
+        compb.put()
+
+  ============================================================
+*/
