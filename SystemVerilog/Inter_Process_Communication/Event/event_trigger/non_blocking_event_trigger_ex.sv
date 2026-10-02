@@ -29,7 +29,7 @@
   ============================================================
 */
 
-// module tb;//code1a
+// module blocking_event_trigger_ex1;//code1a
 
 //   // Create an event variable that processes can use to trigger and wait
 //   event event_a;
@@ -59,7 +59,7 @@
 
 
 
-// module tb;//code1b
+// module blocking_event_trigger_ex2;//code1b
 
 //   // Create an event variable that processes can use to trigger and wait
 //   event event_a;
@@ -89,7 +89,7 @@
 
 
 
-// module tb;//code1c
+// module blocking_event_trigger_ex3;//code1c
 
 //   // Create an event variable that processes can use to trigger and wait
 //   event event_a;
@@ -118,7 +118,7 @@
 
 
 
-module non_blocking_event_trigger_ex();
+module non_blocking_event_trigger_ex;
   event e1;
 
   task process_A();
