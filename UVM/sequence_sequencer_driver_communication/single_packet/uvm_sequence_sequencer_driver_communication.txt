@@ -1,0 +1,970 @@
+/*
+  ============================================================
+          UVM SEQUENCE - SEQUENCER - DRIVER COMMUNICATION
+  ============================================================
+
+  Sequence, Sequencer and Driver are important parts of the
+  UVM testbench used to generate and drive transactions.
+
+  Basic flow:
+
+      SEQUENCE
+          |
+          | sequence item
+          ↓
+      SEQUENCER
+          |
+          | sequence item
+          ↓
+       DRIVER
+          |
+          ↓
+         DUT
+
+
+  The main purpose of this communication is to transfer
+  sequence items from the sequence to the driver.
+
+
+  ============================================================
+  1. SEQUENCE ITEM
+  ============================================================
+
+  A sequence item represents the transaction that has to be
+  sent to the DUT.
+
+  Example:
+
+    class seq_item extends uvm_sequence_item;
+
+      rand int addr;
+      rand int data;
+
+    endclass
+
+
+  Here:
+
+    addr → address information
+    data → data information
+
+
+  The sequence item is the actual transaction that moves from
+  the sequence toward the driver.
+
+
+  ============================================================
+  2. SEQUENCE
+  ============================================================
+
+  A sequence is used to create and generate sequence items.
+
+  Example:
+
+    class seq extends uvm_sequence #(seq_item);
+
+  The sequence creates a sequence item:
+
+    req = seq_item::type_id::create("req");
+
+
+  Then the sequence controls when the item is sent using:
+
+    start_item(req);
+
+    ...
+
+    finish_item(req);
+
+
+  Therefore:
+
+    SEQUENCE
+       ↓
+    Creates sequence item
+       ↓
+    Sends sequence item toward sequencer
+
+
+  ============================================================
+  3. SEQUENCER
+  ============================================================
+
+  The sequencer is the component between the sequence and
+  the driver.
+
+  Example:
+
+    class seqr extends uvm_sequencer #(seq_item);
+
+
+  The sequencer receives sequence items from the sequence and
+  provides them to the driver.
+
+  Therefore:
+
+    Sequence
+       ↓
+    Sequencer
+       ↓
+    Driver
+
+
+  The sequencer also controls the communication between the
+  sequence and driver.
+
+
+  ============================================================
+  4. DRIVER
+  ============================================================
+
+  The driver receives the sequence item from the sequencer
+  and uses it to drive the DUT.
+
+  Example:
+
+    class driver extends uvm_driver #(seq_item);
+
+
+  The driver receives a sequence item using:
+
+    seq_item_port.get_next_item(seq_item_h);
+
+
+  After completing the transaction, the driver calls:
+
+    seq_item_port.item_done();
+
+
+  Therefore:
+
+    DRIVER
+      ↓
+    Gets sequence item
+      ↓
+    Drives DUT
+      ↓
+    Calls item_done()
+
+
+  ============================================================
+  5. COMMUNICATION PATH
+  ============================================================
+
+  The complete communication path is:
+
+    SEQUENCE
+       |
+       | start_item()
+       |
+       | finish_item()
+       ↓
+    SEQUENCER
+       |
+       | sequence item
+       ↓
+    DRIVER
+       |
+       | get_next_item()
+       ↓
+    Drive DUT
+       |
+       ↓
+    item_done()
+
+
+  Simple view:
+
+    Sequence → Sequencer → Driver → DUT
+
+
+  ============================================================
+  6. SEQUENCER-DRIVER CONNECTION
+  ============================================================
+
+  The driver contains:
+
+    uvm_seq_item_pull_port
+
+  In the UVM driver this is available through:
+
+    seq_item_port
+
+
+  The sequencer provides:
+
+    seq_item_export
+
+
+  The connection is made in connect_phase():
+
+    driver_h.seq_item_port.connect(
+        seqr_h.seq_item_export
+    );
+
+
+  Therefore:
+
+    Driver
+      |
+      | seq_item_port
+      ↓
+    Sequencer
+      |
+      | seq_item_export
+      ↓
+    Communication
+
+
+  In simple terms:
+
+    seq_item_port ↔ seq_item_export
+
+
+  ============================================================
+  7. WHY DO WE NEED THIS CONNECTION?
+  ============================================================
+
+  The sequence and driver do not directly communicate with
+  each other.
+
+  The sequencer is between them.
+
+    Sequence
+       |
+       ↓
+    Sequencer
+       |
+       ↓
+    Driver
+
+
+  The sequencer manages the transfer of sequence items
+  between the sequence and driver.
+
+
+  ============================================================
+  8. STARTING THE SEQUENCE
+  ============================================================
+
+  In the test:
+
+    seq_h.start(seqr_h);
+
+
+  This starts the sequence on the specified sequencer.
+
+  Here:
+
+    seq_h → sequence object
+
+    seqr_h → sequencer object
+
+
+  Therefore:
+
+    seq_h.start(seqr_h);
+
+  means:
+
+    Start seq_h using seqr_h.
+
+
+  After the sequence starts, the sequence's:
+
+    body()
+
+  task is executed.
+
+
+  ============================================================
+  9. BODY() TASK OF SEQUENCE
+  ============================================================
+
+  A sequence normally generates its sequence items inside
+  the body() task.
+
+  Example:
+
+    task body();
+
+      req = seq_item::type_id::create("req");
+
+      start_item(req);
+
+      req.randomize();
+
+      finish_item(req);
+
+    endtask
+
+
+  The body() task controls the sequence item generation.
+
+
+  ============================================================
+  10. start_item()
+  ============================================================
+
+  Example:
+
+    start_item(req);
+
+
+  start_item() begins the process of sending the sequence
+  item.
+
+  It allows the sequence to obtain permission to send the
+  item through the sequencer.
+
+  After start_item() completes, the sequence can randomize
+  or modify the sequence item before sending it.
+
+  Example:
+
+    start_item(req);
+
+    req.randomize();
+
+    finish_item(req);
+
+
+  Important:
+
+    start_item()
+        ↓
+    Begin sequence item transfer
+
+
+  ============================================================
+  11. RANDOMIZATION
+  ============================================================
+
+  In your sequence:
+
+    req.randomize();
+
+
+  This randomizes the rand properties of the sequence item.
+
+  Example:
+
+    rand int addr;
+    rand int data;
+
+
+  Therefore:
+
+    req.randomize();
+
+  generates values for:
+
+    req.addr
+    req.data
+
+
+  The randomized item is then completed using:
+
+    finish_item(req);
+
+
+  ============================================================
+  12. finish_item()
+  ============================================================
+
+  Example:
+
+    finish_item(req);
+
+
+  finish_item() completes the sequence-side operation for
+  that sequence item.
+
+  After finish_item(), the item can be transferred through
+  the sequencer to the driver.
+
+  Therefore the sequence-side flow is:
+
+    create item
+        ↓
+    start_item()
+        ↓
+    randomize / modify
+        ↓
+    finish_item()
+        ↓
+    Sequencer
+        ↓
+    Driver
+
+
+  ============================================================
+  13. get_next_item()
+  ============================================================
+
+  The driver uses:
+
+    seq_item_port.get_next_item(seq_item_h);
+
+
+  This asks the sequencer for the next available sequence
+  item.
+
+  The driver waits at this call until a sequence item is
+  available.
+
+  Therefore:
+
+    get_next_item()
+        ↓
+    Wait for sequence item
+        ↓
+    Receive sequence item
+
+
+  After the call completes:
+
+    seq_item_h
+
+  contains the sequence item received from the sequencer.
+
+
+  ============================================================
+  14. item_done()
+  ============================================================
+
+  After the driver has finished processing the sequence item,
+  it calls:
+
+    seq_item_port.item_done();
+
+
+  This tells the sequencer that the current sequence item has
+  been completed.
+
+  Therefore:
+
+    get_next_item()
+        ↓
+    Receive item
+        ↓
+    Driver processes item
+        ↓
+    item_done()
+        ↓
+    Item completed
+
+
+  ============================================================
+  15. COMPLETE HANDSHAKE
+  ============================================================
+
+  The communication can be understood as:
+
+    SEQUENCE
+
+      start_item(req)
+            ↓
+      randomize(req)
+            ↓
+      finish_item(req)
+            ↓
+
+    SEQUENCER
+
+            ↓
+            ↓
+
+    DRIVER
+
+      get_next_item(req)
+            ↓
+      Drive transaction
+            ↓
+      item_done()
+
+
+  The important driver calls are:
+
+    get_next_item()
+    item_done()
+
+
+  ============================================================
+  16. WHAT HAPPENS IN YOUR CODE
+  ============================================================
+
+  TEST:
+
+    seq_h.start(seqr_h);
+
+
+          ↓
+
+  SEQUENCE:
+
+    req = seq_item::type_id::create("req");
+
+          ↓
+
+    start_item(req);
+
+          ↓
+
+    req.randomize();
+
+          ↓
+
+    finish_item(req);
+
+          ↓
+
+  SEQUENCER
+
+          ↓
+
+  DRIVER:
+
+    seq_item_port.get_next_item(seq_item_h);
+
+          ↓
+
+    seq_item_h.print();
+
+          ↓
+
+    seq_item_port.item_done();
+
+
+  ============================================================
+  17. IMPORTANT ORDER OF EXECUTION
+  ============================================================
+
+  The important order is:
+
+    1. test starts sequence
+
+    2. sequence body() starts
+
+    3. sequence creates req
+
+    4. sequence calls start_item(req)
+
+    5. sequence randomizes req
+
+    6. sequence calls finish_item(req)
+
+    7. driver calls get_next_item()
+
+    8. driver receives req
+
+    9. driver processes/drives req
+
+   10. driver calls item_done()
+
+
+  This is the basic Sequence → Sequencer → Driver flow.
+
+
+  ============================================================
+  18. WHY get_next_item() AND item_done() ARE USED TOGETHER
+  ============================================================
+
+  The driver gets a transaction using:
+
+    get_next_item()
+
+
+  and tells the sequencer that it has finished using:
+
+    item_done()
+
+
+  Therefore:
+
+    get_next_item()
+      → Get the current sequence item.
+
+    item_done()
+      → Tell the sequencer that the item is completed.
+
+
+  These two methods form an important part of the
+  sequence-driver communication.
+
+
+  ============================================================
+  19. WHAT HAPPENS IF DRIVER DOES NOT CALL item_done()?
+  ============================================================
+
+  If the driver gets an item using:
+
+    get_next_item();
+
+  but does not call:
+
+    item_done();
+
+  the sequence-side completion process can remain waiting.
+
+  Therefore, when using:
+
+    get_next_item()
+
+  the driver should complete the transaction using:
+
+    item_done();
+
+
+  ============================================================
+  20. DRIVER'S REAL JOB
+  ============================================================
+
+  In your current example, the driver only does:
+
+    seq_item_h.print();
+
+
+  In a real verification environment, this is where the
+  driver would contain the DUT-driving logic.
+
+  For example:
+
+    get_next_item(req);
+
+    // Drive req.addr and req.data to DUT
+    // using the virtual interface.
+
+    item_done();
+
+
+  Therefore:
+
+    Sequence
+      → Generates transaction
+
+    Sequencer
+      → Transfers/manages transaction
+
+    Driver
+      → Converts transaction into DUT pin-level activity
+
+
+  ============================================================
+  21. SEQUENCE vs SEQUENCER vs DRIVER
+  ============================================================
+
+  SEQUENCE:
+
+    - Creates sequence items.
+    - Randomizes/modifies sequence items.
+    - Controls the order in which items are generated.
+    - Uses start_item() and finish_item().
+
+
+  SEQUENCER:
+
+    - Sits between sequence and driver.
+    - Controls transfer of sequence items to the driver.
+    - Provides the interface used by the driver.
+
+
+  DRIVER:
+
+    - Gets sequence items from the sequencer.
+    - Drives the DUT using the transaction.
+    - Uses get_next_item().
+    - Calls item_done() after completing the item.
+
+
+  ============================================================
+  22. IMPORTANT CONNECTION
+  ============================================================
+
+  The connection in your test is:
+
+    driver_h.seq_item_port.connect(
+        seqr_h.seq_item_export
+    );
+
+
+  This is the connection between the driver and sequencer.
+
+  It is made in:
+
+    connect_phase()
+
+
+  Therefore:
+
+    build_phase()
+        ↓
+    Create sequence, sequencer and driver
+        ↓
+    connect_phase()
+        ↓
+    Connect driver and sequencer
+
+
+  ============================================================
+  23. ONE SEQUENCER AND ONE DRIVER
+  ============================================================
+
+  In this basic setup:
+
+    One sequencer
+          |
+          ↓
+       One driver
+
+
+  The driver and sequencer communicate through the
+  seq_item_port and seq_item_export connection.
+
+
+  ============================================================
+  24. IMPORTANT DIFFERENCE:
+      SEQUENCE vs SEQUENCE ITEM
+  ============================================================
+
+  SEQUENCE ITEM:
+
+    Represents one transaction.
+
+  Example:
+
+    req.addr
+    req.data
+
+
+  SEQUENCE:
+
+    Generates one or more sequence items.
+
+  Example:
+
+    task body();
+
+      req = seq_item::type_id::create("req");
+
+      start_item(req);
+      req.randomize();
+      finish_item(req);
+
+    endtask
+
+
+  Simple memory:
+
+    Sequence Item → WHAT to send
+
+    Sequence      → Generates WHEN / HOW items are sent
+
+
+  ============================================================
+  25. IMPORTANT INTERVIEW QUESTIONS
+  ============================================================
+
+  Q1. What is the role of a sequence?
+
+  Answer:
+
+    A sequence generates sequence items and controls the
+    order in which they are sent through the sequencer.
+
+
+  ------------------------------------------------------------
+
+  Q2. What is the role of a sequencer?
+
+  Answer:
+
+    The sequencer manages the communication between the
+    sequence and driver and provides sequence items to the
+    driver.
+
+
+  ------------------------------------------------------------
+
+  Q3. What is the role of a driver?
+
+  Answer:
+
+    The driver receives sequence items from the sequencer
+    and converts them into DUT-level activity.
+
+
+  ------------------------------------------------------------
+
+  Q4. How is the driver connected to the sequencer?
+
+  Answer:
+
+    The driver's seq_item_port is connected to the
+    sequencer's seq_item_export.
+
+    Example:
+
+      driver_h.seq_item_port.connect(
+          seqr_h.seq_item_export
+      );
+
+
+  ------------------------------------------------------------
+
+  Q5. Which methods are used in the driver with this approach?
+
+  Answer:
+
+    get_next_item()
+    item_done()
+
+
+  ------------------------------------------------------------
+
+  Q6. What does get_next_item() do?
+
+  Answer:
+
+    It gets the next sequence item from the sequencer.
+    The driver waits until an item is available.
+
+
+  ------------------------------------------------------------
+
+  Q7. What does item_done() do?
+
+  Answer:
+
+    It tells the sequencer that the driver has completed
+    processing the current sequence item.
+
+
+  ------------------------------------------------------------
+
+  Q8. What is the purpose of start_item()?
+
+  Answer:
+
+    It starts the sequence-item transfer process from the
+    sequence side.
+
+
+  ------------------------------------------------------------
+
+  Q9. What is the purpose of finish_item()?
+
+  Answer:
+
+    It completes the sequence-side operation for the
+    sequence item so that it can be transferred toward
+    the driver.
+
+
+  ------------------------------------------------------------
+
+  Q10. Where is the sequence started?
+
+  Answer:
+
+    In the test:
+
+      seq_h.start(seqr_h);
+
+
+  ============================================================
+  26. MOST IMPORTANT POINTS TO REMEMBER
+  ============================================================
+
+  Remember this complete flow:
+
+    test
+      |
+      | start()
+      ↓
+    sequence
+      |
+      | start_item()
+      ↓
+    sequence item
+      |
+      | randomize()
+      |
+      | finish_item()
+      ↓
+    sequencer
+      |
+      ↓
+    driver
+      |
+      | get_next_item()
+      ↓
+    drive DUT
+      |
+      | item_done()
+      ↓
+    transaction completed
+
+
+  Important methods:
+
+    Sequence:
+      start_item()
+      finish_item()
+
+    Driver:
+      get_next_item()
+      item_done()
+
+    Test:
+      sequence.start(sequencer)
+
+
+  ============================================================
+  27. FINAL MEMORY DIAGRAM
+  ============================================================
+
+                       TEST
+                        |
+                        | seq.start(seqr)
+                        ↓
+                    SEQUENCE
+                        |
+                        | start_item()
+                        |
+                        | randomize()
+                        |
+                        | finish_item()
+                        ↓
+                    SEQUENCER
+                        |
+                        | sequence item
+                        ↓
+                     DRIVER
+                        |
+                        | get_next_item()
+                        ↓
+                    DUT LOGIC
+                        |
+                        | item_done()
+                        ↓
+                  ITEM COMPLETED
+
+
+  SIMPLE MEMORY:
+
+    SEQUENCE
+       ↓
+    Generates item
+
+    SEQUENCER
+       ↓
+    Transfers item
+
+    DRIVER
+       ↓
+    Drives DUT
+
+
+  ============================================================
+*/
