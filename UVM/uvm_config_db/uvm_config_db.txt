@@ -1,0 +1,1265 @@
+/*
+  ============================================================
+                        UVM CONFIG DB
+  ============================================================
+
+  uvm_config_db is used to pass configuration values from one
+  UVM component to another UVM component through a common
+  configuration database.
+
+  Instead of directly passing a value from one component to
+  another, a component can SET the value into config_db and
+  another component can GET the value from config_db.
+
+  Basic flow:
+
+        SET
+         |
+         v
+    CONFIG DB
+         |
+         v
+        GET
+
+
+  ============================================================
+  1. WHY UVM CONFIG DB IS USED
+  ============================================================
+
+  UVM components are created in a hierarchy.
+
+      test
+       |
+       +-- sequencer
+       |
+       +-- driver
+       |
+       +-- sequence
+
+  Sometimes the test knows a configuration value, but the
+  component that needs that value is somewhere deeper in the
+  hierarchy.
+
+  uvm_config_db allows the test or another component to place
+  the
+  value into the configuration database and allows the required
+  component to retrieve it.
+
+  Example:
+
+      test
+       |
+       +-- driver
+
+  The test can SET a value:
+
+      uvm_config_db#(int)::set(...);
+
+  The driver can GET the value:
+
+      uvm_config_db#(int)::get(...);
+
+
+  ============================================================
+  2. MAIN METHODS
+  ============================================================
+
+  The two main methods are:
+
+      set()
+      get()
+
+  set()
+  ------------------------------------------------------------
+  Used to put a configuration value into the configuration
+  database.
+
+  get()
+  ------------------------------------------------------------
+  Used to retrieve a configuration value from the configuration
+  database.
+
+  Basic syntax:
+
+      uvm_config_db#(type)::set(
+          context,
+          instance_name,
+          field_name,
+          value
+      );
+
+      uvm_config_db#(type)::get(
+          context,
+          instance_name,
+          field_name,
+          variable
+      );
+
+
+  ============================================================
+  3. MEANING OF THE FOUR ARGUMENTS
+  ============================================================
+
+  Consider:
+
+      uvm_config_db#(int)::set(
+          this,
+          "driver_h",
+          "dwarak",
+          25
+      );
+
+
+  The four arguments are:
+
+      1. this
+         → context
+
+      2. "driver_h"
+         → instance name
+
+      3. "dwarak"
+         → field name
+
+      4. 25
+         → value
+
+
+  ------------------------------------------------------------
+  1. CONTEXT
+  ------------------------------------------------------------
+
+  The first argument specifies the component from which the
+  configuration setting is being made.
+
+  Example:
+
+      set(this, "driver_h", "dwarak", 25);
+
+  Here:
+
+      this → test component
+
+  Therefore the setting starts from the test component.
+
+
+  ------------------------------------------------------------
+  2. INSTANCE NAME
+  ------------------------------------------------------------
+
+  The second argument specifies the component or hierarchy
+  where the setting should be available.
+
+  Example:
+
+      "driver_h"
+
+  means the setting is intended for the component:
+
+      uvm_test_top.driver_h
+
+
+  ------------------------------------------------------------
+  3. FIELD NAME
+  ------------------------------------------------------------
+
+  The third argument is the name used to identify the
+  configuration value.
+
+  Example:
+
+      "dwarak"
+
+  This name must match between SET and GET.
+
+  SET:
+
+      "dwarak"
+
+  GET:
+
+      "dwarak"
+
+
+  ------------------------------------------------------------
+  4. VALUE
+  ------------------------------------------------------------
+
+  The fourth argument in set() is the value being stored.
+
+      25
+
+  Therefore:
+
+      "dwarak" → 25
+
+
+  In get(), the fourth argument is the variable into which
+  the value will be retrieved.
+
+      get(this, "", "dwarak", a);
+
+  If the GET is successful:
+
+      a = 25;
+
+
+  ============================================================
+  4. CONFIG DB TYPE
+  ============================================================
+
+  The type passed to uvm_config_db specifies the type of value
+  being stored.
+
+  Example:
+
+      uvm_config_db#(int)
+
+  means the configuration value is an int.
+
+  Therefore:
+
+      uvm_config_db#(int)::set(..., 25);
+
+  stores an integer.
+
+  The SET and GET must use the same type.
+
+  Example:
+
+      uvm_config_db#(int)::set(...);
+
+      uvm_config_db#(int)::get(...);
+
+
+  ============================================================
+  5. CONFIG DB IN YOUR DRIVER
+  ============================================================
+
+  Your driver contains:
+
+      int a,b;
+
+
+  These variables are used to receive configuration values
+  from config_db.
+
+
+  In build_phase():
+
+      if (!uvm_config_db#(int)::get(
+              this,
+              "",
+              "dwarak",
+              a
+          ))
+
+        `uvm_error("CONFIG", "Failed to get dwarak")
+
+
+  Here:
+
+      this
+        → driver
+
+      ""
+        → current driver instance
+
+      "dwarak"
+        → configuration field name
+
+      a
+        → variable that receives the value
+
+
+  If the configuration value is found:
+
+      a = value_from_config_db;
+
+
+  ============================================================
+  6. SETTING "dwarak" IN YOUR TEST
+  ============================================================
+
+  Your test contains:
+
+      uvm_config_db#(int)::set(
+          this,
+          "driver_h",
+          "dwarak",
+          25
+      );
+
+
+  Here:
+
+      this
+        → test
+
+      "driver_h"
+        → driver instance
+
+      "dwarak"
+        → field name
+
+      25
+        → value
+
+
+  The setting corresponds to:
+
+      uvm_test_top.driver_h.dwarak
+
+  Therefore the driver can retrieve it using:
+
+      uvm_config_db#(int)::get(
+          this,
+          "",
+          "dwarak",
+          a
+      );
+
+
+  Result:
+
+      a = 25;
+
+
+  ============================================================
+  7. SETTING "Gajjala" IN YOUR TEST
+  ============================================================
+
+  Your test also contains:
+
+      uvm_config_db#(int)::set(
+          this,
+          "driver_h",
+          "Gajjala",
+          100
+      );
+
+
+  Therefore:
+
+      "Gajjala" → 100
+
+  is made available to driver_h.
+
+  The driver retrieves it using:
+
+      uvm_config_db#(int)::get(
+          this,
+          "",
+          "Gajjala",
+          b
+      );
+
+
+  If the GET is successful:
+
+      b = 100;
+
+
+  Therefore your test is passing two different configuration
+  values to the driver:
+
+      dwarak  → 25
+      Gajjala → 100
+
+
+  ============================================================
+  8. CONFIG DB IN YOUR SEQUENCE
+  ============================================================
+
+  Your sequence contains:
+
+      int count;
+
+
+  The sequence uses this value here:
+
+      repeat(count) begin
+
+          ...
+
+      end
+
+
+  Therefore count controls the number of sequence items
+  generated by the sequence.
+
+
+  Your test retrieves the value using:
+
+      uvm_config_db#(int)::get(
+          this,
+          "seq_h",
+          "packte_count",
+          seq_h.count
+      );
+
+
+  Here:
+
+      this
+        → test
+
+      "seq_h"
+        → sequence instance
+
+      "packte_count"
+        → field name
+
+      seq_h.count
+        → variable receiving the value
+
+
+  ============================================================
+  9. SETTING PACKET COUNT FROM TB
+  ============================================================
+
+  Your TB contains:
+
+      uvm_config_db#(int)::set(
+          null,
+          "uvm_test_top.seq_h",
+          "packte_count",
+          3
+      );
+
+
+  Here:
+
+      null
+        → no component context is used
+
+      "uvm_test_top.seq_h"
+        → complete hierarchy is specified
+
+      "packte_count"
+        → field name
+
+      3
+        → value
+
+
+  Therefore the configuration setting is associated with:
+
+      uvm_test_top.seq_h.packte_count
+
+
+  Your test retrieves it into:
+
+      seq_h.count
+
+
+  Therefore:
+
+      seq_h.count = 3;
+
+
+  Then:
+
+      repeat(count)
+
+  becomes effectively:
+
+      repeat(3)
+
+
+  So the sequence generates three sequence items.
+
+
+  ============================================================
+  10. WHY null IS USED
+  ============================================================
+
+  You used:
+
+      set(
+          null,
+          "uvm_test_top.seq_h",
+          "packte_count",
+          3
+      );
+
+
+  When the context is null, the instance name provides the
+  complete hierarchy information.
+
+  Therefore:
+
+      null + "uvm_test_top.seq_h"
+
+  identifies:
+
+      uvm_test_top.seq_h
+
+
+  This is different from:
+
+      set(this, "seq_h", ...)
+
+  because in that case "this" provides the starting context.
+
+
+  ============================================================
+  11. TWO WAYS USED IN YOUR CODE
+  ============================================================
+
+  Your code demonstrates both forms.
+
+  ------------------------------------------------------------
+  METHOD 1: USING THIS
+  ------------------------------------------------------------
+
+      uvm_config_db#(int)::set(
+          this,
+          "driver_h",
+          "dwarak",
+          25
+      );
+
+
+  Here:
+
+      this → test
+
+      "driver_h" → child of test
+
+  Therefore the hierarchy is formed from the context.
+
+
+  ------------------------------------------------------------
+  METHOD 2: USING NULL
+  ------------------------------------------------------------
+
+      uvm_config_db#(int)::set(
+          null,
+          "uvm_test_top.seq_h",
+          "packte_count",
+          3
+      );
+
+
+  Here the complete hierarchy is directly specified.
+
+
+  ============================================================
+  12. SET AND GET MUST MATCH
+  ============================================================
+
+  A successful GET depends on matching the configuration
+  setting.
+
+  Important information includes:
+
+      context
+      instance hierarchy
+      field name
+      type
+
+
+  For example:
+
+      SET:
+
+      set(this, "driver_h", "dwarak", 25);
+
+
+      GET:
+
+      get(this, "", "dwarak", a);
+
+
+  The GET is performed from driver_h, so the complete hierarchy
+  can match the setting made for driver_h.
+
+
+  The field name is especially important.
+
+      SET:
+          "dwarak"
+
+      GET:
+          "dwarak"
+
+  Correct.
+
+
+      SET:
+          "dwarak"
+
+      GET:
+          "Gajjala"
+
+  Different field names → different configuration settings.
+
+
+  ============================================================
+  13. GET RETURNS SUCCESS OR FAILURE
+  ============================================================
+
+  get() returns a bit indicating whether the requested
+  configuration value was found.
+
+  Therefore your code uses:
+
+      if (!uvm_config_db#(int)::get(...))
+        `uvm_error(...);
+
+
+  Meaning:
+
+      GET successful
+          ↓
+      continue
+
+      GET failed
+          ↓
+      report UVM_ERROR
+
+
+  Example:
+
+      if (!uvm_config_db#(int)::get(
+              this,
+              "",
+              "dwarak",
+              a
+          ))
+        `uvm_error("CONFIG", "Failed to get dwarak");
+
+
+  The ! means:
+
+      if GET was NOT successful
+
+
+  ============================================================
+  14. WHY GET IS DONE IN build_phase()
+  ============================================================
+
+  In your driver:
+
+      function void build_phase(uvm_phase phase);
+
+          ...
+
+          uvm_config_db#(int)::get(...);
+
+      endfunction
+
+
+  The configuration values are retrieved during build_phase.
+
+  This allows the driver to obtain its configuration before
+  the main simulation activity starts in run_phase.
+
+
+  Your sequence count is also obtained during build_phase of
+  the test:
+
+      uvm_config_db#(int)::get(
+          this,
+          "seq_h",
+          "packte_count",
+          seq_h.count
+      );
+
+
+  Then the sequence uses count later in body().
+
+
+  ============================================================
+  15. CONFIG DB AND COMPONENT HIERARCHY
+  ============================================================
+
+  Your UVM hierarchy is approximately:
+
+      uvm_test_top
+          |
+          +-- seqr_h
+          |
+          +-- driver_h
+          |
+          +-- seq_h
+
+
+  Configuration values are associated with this hierarchy.
+
+  For driver:
+
+      uvm_test_top.driver_h
+
+      dwarak  → 25
+      Gajjala → 100
+
+
+  For sequence:
+
+      uvm_test_top.seq_h
+
+      packte_count → 3
+
+
+  Therefore different components can receive different
+  configuration values.
+
+
+  ============================================================
+  16. CONFIG DB DATA FLOW IN YOUR CODE
+  ============================================================
+
+  DRIVER CONFIGURATION
+  ------------------------------------------------------------
+
+      TEST
+       |
+       | set "dwarak" = 25
+       |
+       v
+    CONFIG DB
+       |
+       | get "dwarak"
+       |
+       v
+     DRIVER
+       |
+       v
+       a = 25
+
+
+      TEST
+       |
+       | set "Gajjala" = 100
+       |
+       v
+    CONFIG DB
+       |
+       | get "Gajjala"
+       |
+       v
+     DRIVER
+       |
+       v
+       b = 100
+
+
+  ------------------------------------------------------------
+  SEQUENCE CONFIGURATION
+  ------------------------------------------------------------
+
+      TB
+       |
+       | set "packte_count" = 3
+       |
+       v
+    CONFIG DB
+       |
+       | get "packte_count"
+       |
+       v
+     TEST
+       |
+       v
+    seq_h.count = 3
+       |
+       v
+    repeat(count)
+       |
+       v
+    3 sequence items
+
+
+  ============================================================
+  17. CONFIG DB AND SEQUENCE ITEM GENERATION
+  ============================================================
+
+  Your sequence contains:
+
+      repeat(count) begin
+
+          req = seq_item::type_id::create("req");
+
+          start_item(req);
+
+          req.randomize();
+
+          finish_item(req);
+
+      end
+
+
+  The count is obtained from config_db.
+
+  In your TB:
+
+      packte_count = 3
+
+
+  Therefore:
+
+      count = 3
+
+
+  So:
+
+      repeat(3)
+
+  generates:
+
+      Sequence Item 1
+      Sequence Item 2
+      Sequence Item 3
+
+
+  The driver receives these items one after another using:
+
+      seq_item_port.get_next_item(seq_item_h);
+
+
+  ============================================================
+  18. CONFIG DB IS NOT THE SAME AS TLM COMMUNICATION
+  ============================================================
+
+  It is important to separate these two concepts.
+
+  Sequence → Sequencer → Driver
+
+  is the transaction communication path.
+
+  uvm_config_db
+
+  is used to provide configuration values.
+
+
+  In your example:
+
+      seq_item
+          |
+          v
+      sequence
+          |
+          v
+      sequencer
+          |
+          v
+      driver
+
+
+  This is transaction flow.
+
+
+  Whereas:
+
+      test
+        |
+        | config_db
+        |
+        +----> driver
+        |
+        +----> sequence
+
+
+  This is configuration flow.
+
+
+  ============================================================
+  19. CONFIG DB VS DIRECT ASSIGNMENT
+  ============================================================
+
+  Without config_db, you could directly assign:
+
+      driver_h.a = 25;
+
+
+  But this creates direct dependency between test and driver.
+
+  With config_db:
+
+      uvm_config_db#(int)::set(
+          this,
+          "driver_h",
+          "dwarak",
+          25
+      );
+
+
+  and driver:
+
+      uvm_config_db#(int)::get(
+          this,
+          "",
+          "dwarak",
+          a
+      );
+
+
+  The driver receives its configuration through the UVM
+  configuration database.
+
+
+  ============================================================
+  20. CONFIG DB FIELD NAME
+  ============================================================
+
+  The field name is simply the name used to identify a
+  configuration setting.
+
+  In your code you used:
+
+      "dwarak"
+
+      "Gajjala"
+
+      "packte_count"
+
+
+  They are just configuration field names.
+
+  For example:
+
+      "dwarak" → integer configuration value
+      "Gajjala" → integer configuration value
+      "packte_count" → integer configuration value
+
+
+  The names themselves have no special meaning to UVM.
+
+
+  ============================================================
+  21. CONFIG DB WITH WILDCARDS
+  ============================================================
+
+  The instance name can also use wildcard-style expressions.
+
+  Example:
+
+      uvm_config_db#(int)::set(
+          this,
+          "*",
+          "value",
+          25
+      );
+
+
+  This can make the setting available to matching components.
+
+  For example:
+
+      "driver*"
+
+  can match component instances whose names match that pattern.
+
+  This is useful when the same configuration has to be
+  provided to multiple components.
+
+  However, configuration should preferably be limited to the
+  components that actually need it.
+
+
+  ============================================================
+  22. HIERARCHY AND CONFIG DB
+  ============================================================
+
+  Your component hierarchy:
+
+      uvm_test_top
+          |
+          +-- driver_h
+          |
+          +-- seq_h
+          |
+          +-- seqr_h
+
+
+  Setting:
+
+      set(this, "driver_h", "dwarak", 25)
+
+  means the setting is made relative to:
+
+      uvm_test_top
+
+  and targets:
+
+      driver_h
+
+
+  Therefore the resulting configuration path is:
+
+      uvm_test_top.driver_h.dwarak
+
+
+  Similarly:
+
+      set(null,
+          "uvm_test_top.seq_h",
+          "packte_count",
+          3)
+
+
+  identifies:
+
+      uvm_test_top.seq_h.packte_count
+
+
+  ============================================================
+  23. CONFIG DB TRACE
+  ============================================================
+
+  UVM provides a useful debug option:
+
+      +UVM_CONFIG_DB_TRACE
+
+
+  This prints configuration database SET and GET operations
+  during simulation.
+
+  It is useful when a GET fails and you want to know:
+
+      - What was SET?
+      - Where was it SET?
+      - What was GET?
+      - From which component?
+      - Did the hierarchy match?
+      - Did the field name match?
+
+
+  Example command:
+
+      +UVM_CONFIG_DB_TRACE
+
+
+  This is especially useful when debugging large UVM
+  testbenches.
+
+
+  ============================================================
+  24. IMPORTANT POINT ABOUT YOUR TWO "Gajjala" SETS
+  ============================================================
+
+  You currently have TWO SET operations for "Gajjala".
+
+  First in test build_phase:
+
+      uvm_config_db#(int)::set(
+          this,
+          "driver_h",
+          "Gajjala",
+          100
+      );
+
+
+  Second in TB:
+
+      uvm_config_db#(int)::set(
+          null,
+          "uvm_test_top.driver_h",
+          "Gajjala",
+          50
+      );
+
+
+  Both target:
+
+      uvm_test_top.driver_h.Gajjala
+
+
+  So you are intentionally creating two settings for the same
+  configuration field.
+
+  The final value obtained can depend on the configuration
+  database precedence and the timing/order of the SET operations.
+
+  Therefore, while learning config_db, it is better to keep
+  only one SET for a particular configuration field unless you
+  are specifically studying precedence.
+
+  Use:
+
+      +UVM_CONFIG_DB_TRACE
+
+  if you want to observe exactly which setting is used in your
+  simulator.
+
+
+  ============================================================
+  25. YOUR COMPLETE CONFIG DB EXAMPLE
+  ============================================================
+
+  TEST:
+
+      uvm_config_db#(int)::set(
+          this,
+          "driver_h",
+          "dwarak",
+          25
+      );
+
+      uvm_config_db#(int)::set(
+          this,
+          "driver_h",
+          "Gajjala",
+          100
+      );
+
+
+  DRIVER:
+
+      if (!uvm_config_db#(int)::get(
+              this,
+              "",
+              "dwarak",
+              a
+          ))
+
+        `uvm_error("CONFIG", "Failed to get dwarak")
+
+
+      if (!uvm_config_db#(int)::get(
+              this,
+              "",
+              "Gajjala",
+              b
+          ))
+
+        `uvm_error("CONFIG", "Failed to get Gajjala")
+
+
+  SEQUENCE COUNT:
+
+      TB:
+
+      uvm_config_db#(int)::set(
+          null,
+          "uvm_test_top.seq_h",
+          "packte_count",
+          3
+      );
+
+
+      TEST:
+
+      uvm_config_db#(int)::get(
+          this,
+          "seq_h",
+          "packte_count",
+          seq_h.count
+      );
+
+
+  Therefore:
+
+      seq_h.count = 3
+
+
+  ============================================================
+  26. SIMPLE INTERVIEW UNDERSTANDING
+  ============================================================
+
+  What is uvm_config_db?
+
+  → uvm_config_db is used to pass configuration values between
+    UVM components through a configuration database.
+
+
+  What are the main methods?
+
+  → set() and get()
+
+
+  What does set() do?
+
+  → Stores a configuration value in the config database.
+
+
+  What does get() do?
+
+  → Retrieves a configuration value from the config database.
+
+
+  What is cntxt?
+
+  → The UVM component that provides the context for the
+    configuration setting.
+
+
+  What is inst_name?
+
+  → The component or hierarchy for which the configuration is
+    intended.
+
+
+  What is field_name?
+
+  → The name used to identify the configuration value.
+
+
+  What does null mean in context?
+
+  → No component context is used, so the instance name provides
+    the complete hierarchy information.
+
+
+  Why does get() return a bit?
+
+  → To indicate whether the requested configuration value was
+    successfully found.
+
+
+  ============================================================
+  27. KEY POINT
+  ============================================================
+
+  uvm_config_db
+
+      → Used for configuration
+
+  set()
+
+      → Put configuration into config_db
+
+  get()
+
+      → Retrieve configuration from config_db
+
+  cntxt
+
+      → Provides context
+
+  inst_name
+
+      → Identifies the target hierarchy
+
+  field_name
+
+      → Identifies the configuration setting
+
+  value
+
+      → Configuration value
+
+  get() return value
+
+      → Indicates success or failure
+
+
+  Your example:
+
+      "dwarak"
+          → driver configuration
+          → 25
+
+      "Gajjala"
+          → driver configuration
+          → 100
+
+      "packte_count"
+          → sequence configuration
+          → 3
+
+
+  ============================================================
+*/
