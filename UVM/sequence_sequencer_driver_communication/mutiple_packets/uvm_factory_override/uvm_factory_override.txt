@@ -1,0 +1,967 @@
+/*
+  ============================================================
+                       UVM FACTORY
+  ============================================================
+
+  The UVM factory is used to create UVM objects and components
+  through the factory instead of directly using new().
+
+  The main advantage of the factory is that the requested class
+  can be replaced by a derived class without changing the
+  original create() statement.
+
+  Basic idea:
+
+      Original Class
+           |
+           | type_id::create()
+           |
+           v
+        Factory
+           |
+           | override
+           v
+      Derived Class
+
+
+  ============================================================
+  1. WHY DO WE NEED THE UVM FACTORY?
+  ============================================================
+
+  In a simple testbench, we can create a class directly using:
+
+      driver_h = new(...);
+
+  But in a large UVM testbench, the same class may be created
+  in many different places.
+
+  If we want to replace the original class with another
+  derived class, changing every new() statement becomes
+  difficult.
+
+  The UVM factory solves this problem.
+
+  Instead of:
+
+      driver_h = new(...);
+
+  UVM uses:
+
+      driver_h = driver::type_id::create(...);
+
+
+  Now the factory can decide whether to create:
+
+      driver
+
+  or an overridden derived class such as:
+
+      error_driver
+
+
+  ============================================================
+  2. FACTORY REGISTRATION
+  ============================================================
+
+  Before a class can participate in factory creation and
+  factory overrides, it must be registered with the UVM
+  factory.
+
+  For classes derived from uvm_component:
+
+      `uvm_component_utils(driver)
+
+  For classes derived from uvm_object:
+
+      `uvm_object_utils(seq_item)
+
+  Example:
+
+      class driver extends uvm_driver #(seq_item);
+
+        `uvm_component_utils(driver)
+
+        ...
+
+      endclass
+
+
+  Example:
+
+      class seq extends uvm_sequence #(seq_item);
+
+        `uvm_object_utils(seq)
+
+        ...
+
+      endclass
+
+
+  ============================================================
+  3. type_id::create()
+  ============================================================
+
+  UVM components and objects are normally created using:
+
+      type_id::create()
+
+
+  Your driver is created using:
+
+      driver_h = driver::type_id::create(
+          "driver_h",
+          this
+      );
+
+
+  Here:
+
+      driver
+          → class being requested
+
+      type_id
+          → factory type information
+
+      create()
+          → asks the factory to create the object
+
+      "driver_h"
+          → instance name
+
+      this
+          → parent component
+
+
+  The important point is:
+
+      type_id::create()
+
+  allows the factory to participate in object creation.
+
+
+  ============================================================
+  4. new() VS type_id::create()
+  ============================================================
+
+  Direct creation:
+
+      driver_h = new(...);
+
+  Factory creation:
+
+      driver_h = driver::type_id::create(
+          "driver_h",
+          this
+      );
+
+
+  With new():
+
+      Factory
+         ↓
+      NOT involved
+
+
+  With type_id::create():
+
+      Factory
+         ↓
+      Can apply an override
+         ↓
+      Creates requested or overridden type
+
+
+  Therefore factory-based UVM code normally uses:
+
+      type_id::create()
+
+
+  ============================================================
+  5. INHERITANCE USED IN YOUR EXAMPLE
+  ============================================================
+
+  Your code has:
+
+      class driver extends uvm_driver #(seq_item);
+
+  and:
+
+      class error_driver extends driver;
+
+
+  Therefore:
+
+      driver
+        ↑
+        |
+      error_driver
+
+
+  error_driver is derived from driver.
+
+  This is important because a driver handle can hold an
+  error_driver object.
+
+  For example:
+
+      driver driver_h;
+
+  can point to:
+
+      error_driver
+
+
+  because error_driver is derived from driver.
+
+
+  ============================================================
+  6. YOUR ORIGINAL DRIVER
+  ============================================================
+
+  Your agent declares:
+
+      driver driver_h;
+
+
+  Then in build_phase():
+
+      driver_h =
+          driver::type_id::create(
+              "driver_h",
+              this
+          );
+
+
+  Without any override, the factory creates:
+
+      driver
+
+
+  Therefore:
+
+      driver_h
+          ↓
+        driver object
+
+
+  ============================================================
+  7. WHAT IS A FACTORY OVERRIDE?
+  ============================================================
+
+  A factory override tells the UVM factory:
+
+      "When somebody requests this original type,
+       create this derived type instead."
+
+
+  In simple form:
+
+      Requested type
+            ↓
+      driver
+
+      Override type
+            ↓
+      error_driver
+
+
+  Therefore:
+
+      Request driver
+           ↓
+        Factory
+           ↓
+      Create error_driver
+
+
+  The important point is that the original create() statement
+  does not need to be changed.
+
+
+  ============================================================
+  8. TYPE OVERRIDE
+  ============================================================
+
+  Your code uses:
+
+      set_type_override_by_type(
+          driver::get_type(),
+          error_driver::get_type()
+      );
+
+
+  This is called a TYPE OVERRIDE.
+
+
+  It means:
+
+      Whenever the factory is asked to create a driver,
+      create an error_driver instead.
+
+
+  Conceptually:
+
+      driver
+         |
+         | TYPE OVERRIDE
+         ↓
+      error_driver
+
+
+  ============================================================
+  9. BREAKING DOWN YOUR OVERRIDE
+  ============================================================
+
+      set_type_override_by_type(
+          driver::get_type(),
+          error_driver::get_type()
+      );
+
+
+  First:
+
+      driver::get_type()
+
+  identifies the original/requested type:
+
+      driver
+
+
+  Second:
+
+      error_driver::get_type()
+
+  identifies the replacement/override type:
+
+      error_driver
+
+
+  Therefore:
+
+      driver → error_driver
+
+
+  ============================================================
+  10. WHY get_type() IS USED
+  ============================================================
+
+  The factory needs type information about the original class
+  and the override class.
+
+  Therefore:
+
+      driver::get_type()
+
+  gives the factory information about the driver type.
+
+  Similarly:
+
+      error_driver::get_type()
+
+  gives the factory information about the error_driver type.
+
+
+  So:
+
+      driver::get_type()
+          ↓
+      Original type
+
+
+      error_driver::get_type()
+          ↓
+      Override type
+
+
+  ============================================================
+  11. WHERE YOU APPLY THE OVERRIDE
+  ============================================================
+
+  In your code:
+
+      function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+
+        set_type_override_by_type(
+            driver::get_type(),
+            error_driver::get_type()
+        );
+
+        driver_h =
+            driver::type_id::create(
+                "driver_h",
+                this
+            );
+
+        seqr_h =
+            seqr::type_id::create(
+                "seqr_h",
+                this
+            );
+      endfunction
+
+
+  The important order is:
+
+      1. Register the classes
+      2. Set the override
+      3. Call type_id::create()
+
+
+  The override must be active before the factory creation
+  happens.
+
+
+  ============================================================
+  12. WHAT HAPPENS DURING YOUR CODE EXECUTION?
+  ============================================================
+
+  Your agent contains:
+
+      driver driver_h;
+
+
+  During build_phase():
+
+      set_type_override_by_type(
+          driver::get_type(),
+          error_driver::get_type()
+      );
+
+
+  The factory now knows:
+
+      driver → error_driver
+
+
+  Next:
+
+      driver_h =
+          driver::type_id::create(
+              "driver_h",
+              this
+          );
+
+
+  The requested type is:
+
+      driver
+
+
+  The factory checks its override information.
+
+      Requested:
+          driver
+
+      Override found:
+          error_driver
+
+
+  Therefore the factory creates:
+
+      error_driver
+
+
+  The handle is still:
+
+      driver_h
+
+  because the handle was declared as:
+
+      driver driver_h;
+
+
+  But the actual object created is:
+
+      error_driver
+
+
+  Conceptually:
+
+      driver driver_h;
+
+              |
+              ↓
+
+      driver_h
+          |
+          ↓
+      error_driver object
+
+
+  ============================================================
+  13. WHY DOES driver_h STILL HAVE TYPE driver?
+  ============================================================
+
+  You declared:
+
+      driver driver_h;
+
+
+  Therefore the handle type is driver.
+
+  But factory override changes the actual object that is
+  created.
+
+      Handle type:
+          driver
+
+      Actual object:
+          error_driver
+
+
+  This works because:
+
+      error_driver extends driver
+
+
+  Therefore an error_driver object is compatible with a
+  driver handle.
+
+
+  ============================================================
+  14. YOUR error_driver CLASS
+  ============================================================
+
+  Your class is:
+
+      class error_driver extends driver;
+
+
+  Therefore error_driver inherits the members of driver and
+  can also provide its own implementation.
+
+  Your error_driver has its own:
+
+      build_phase()
+
+  and:
+
+      run_phase()
+
+
+  In your example:
+
+      driver::run_phase()
+
+  prints:
+
+      "the correct driver class"
+
+
+  while:
+
+      error_driver::run_phase()
+
+  prints:
+
+      "the error driver class"
+
+
+  Therefore the different implementation allows you to see
+  that the override actually happened.
+
+
+  ============================================================
+  15. WHY THE ORIGINAL CREATE() IS NOT CHANGED
+  ============================================================
+
+  Your code still says:
+
+      driver_h =
+          driver::type_id::create(
+              "driver_h",
+              this
+          );
+
+
+  You do NOT change it to:
+
+      error_driver::type_id::create(...);
+
+
+  This is the important benefit of the factory.
+
+  The environment/agent can continue requesting:
+
+      driver
+
+  while the testbench configuration can decide:
+
+      create error_driver instead.
+
+
+  ============================================================
+  16. TYPE OVERRIDE MEANS GLOBAL TYPE REPLACEMENT
+  ============================================================
+
+  A type override applies to every matching factory creation
+  of the requested type.
+
+  Example:
+
+      set_type_override_by_type(
+          driver::get_type(),
+          error_driver::get_type()
+      );
+
+
+  Conceptually:
+
+      driver request #1
+          ↓
+      error_driver
+
+      driver request #2
+          ↓
+      error_driver
+
+      driver request #3
+          ↓
+      error_driver
+
+
+  Therefore type override is not limited to one particular
+  hierarchy location.
+
+
+  ============================================================
+  17. TYPE OVERRIDE VS INSTANCE OVERRIDE
+  ============================================================
+
+  UVM provides two important override concepts:
+
+      TYPE OVERRIDE
+      INSTANCE OVERRIDE
+
+
+  ------------------------------------------------------------
+  TYPE OVERRIDE
+  ------------------------------------------------------------
+
+      driver
+         ↓
+      error_driver
+
+
+  All matching driver creations can be replaced.
+
+
+  ------------------------------------------------------------
+  INSTANCE OVERRIDE
+  ------------------------------------------------------------
+
+  Only a particular hierarchy location is replaced.
+
+  Example concept:
+
+      agent1
+        |
+        +-- driver
+             ↓
+        error_driver
+
+
+      agent2
+        |
+        +-- driver
+             ↓
+           driver
+
+
+  So:
+
+      Type override
+          → affects all matching instances
+
+      Instance override
+          → affects only a selected hierarchy path
+
+
+  ============================================================
+  18. INSTANCE OVERRIDE
+  ============================================================
+
+  Instance override is used when you want to replace a class
+  only at a particular hierarchy location.
+
+  Example:
+
+      set_inst_override_by_type(
+          "agent_h.driver_h",
+          driver::get_type(),
+          error_driver::get_type()
+      );
+
+
+  The exact argument form depends on whether the convenience
+  method on uvm_component or the uvm_factory method is used.
+
+  The important concept is:
+
+      TYPE OVERRIDE
+          → replace by type
+
+      INSTANCE OVERRIDE
+          → replace at a specific hierarchy instance
+
+
+  ============================================================
+  19. FACTORY OVERRIDE AND build_phase()
+  ============================================================
+
+  Your override is placed in:
+
+      agent.build_phase()
+
+
+  before:
+
+      driver::type_id::create()
+
+
+  This is important.
+
+  The factory must know about the override before the
+  corresponding create() call occurs.
+
+  Correct:
+
+      set override
+           ↓
+      type_id::create()
+
+
+  Incorrect:
+
+      type_id::create()
+           ↓
+      set override
+
+
+  The already-created object cannot be changed by a later
+  factory override.
+
+
+  ============================================================
+  20. FACTORY OVERRIDE AND REGISTRATION
+  ============================================================
+
+  Both classes in your example are registered:
+
+      `uvm_component_utils(driver)
+
+      `uvm_component_utils(error_driver)
+
+
+  This allows the factory to know about these component types.
+
+  Without the required factory registration, the factory
+  cannot properly participate in the override.
+
+
+  ============================================================
+  21. FACTORY OVERRIDE AND POLYMORPHISM
+  ============================================================
+
+  Factory override uses the inheritance relationship between
+  the original class and the override class.
+
+      class driver extends uvm_driver #(seq_item);
+
+      class error_driver extends driver;
+
+
+  Therefore:
+
+      driver handle
+          ↓
+      error_driver object
+
+
+  This is possible because error_driver is derived from driver.
+
+
+  ============================================================
+  22. YOUR COMPLETE FACTORY FLOW
+  ============================================================
+
+      class driver
+             ↑
+             |
+      class error_driver
+             |
+             |
+      Register both with factory
+             |
+             ↓
+      set_type_override_by_type(
+          driver::get_type(),
+          error_driver::get_type()
+      )
+             |
+             ↓
+      driver::type_id::create()
+             |
+             ↓
+          Factory
+             |
+             | checks override
+             ↓
+       error_driver object
+             |
+             ↓
+        driver_h handle
+
+
+  ============================================================
+  23. FACTORY PRINT
+  ============================================================
+
+  UVM provides:
+
+      factory.print();
+
+
+  This can be used to display the factory configuration.
+
+  It is useful for checking whether the override has actually
+  been registered.
+
+  Conceptually the factory should show:
+
+      Requested Type       Override Type
+      ----------------------------------
+      driver               error_driver
+
+
+  ============================================================
+  24. COMMON MISTAKE
+  ============================================================
+
+  Do not forget:
+
+      `uvm_component_utils(driver)
+
+  and:
+
+      `uvm_component_utils(error_driver)
+
+
+  Also make sure the override is applied before the relevant
+  type_id::create() call.
+
+
+  ============================================================
+  25. IMPORTANT DIFFERENCE
+  ============================================================
+
+  Factory override does NOT mean:
+
+      driver_h changes its declared type.
+
+  It means:
+
+      driver_h is still a driver handle,
+
+      but the factory creates an error_driver object for it.
+
+
+  Therefore:
+
+      Handle type:
+          driver
+
+      Actual object:
+          error_driver
+
+
+  ============================================================
+  26. INTERVIEW UNDERSTANDING
+  ============================================================
+
+  What is the UVM factory?
+
+  → A UVM mechanism used to create objects/components through
+    the factory and allows the requested type to be replaced
+    by an override type.
+
+
+  Why use type_id::create()?
+
+  → It allows the factory to participate in object creation
+    and apply factory overrides.
+
+
+  What is factory override?
+
+  → It allows a requested class type to be replaced by a
+    compatible derived class without changing the original
+    create() statement.
+
+
+  What is type override?
+
+  → It replaces all matching instances of a requested type
+    with the override type.
+
+
+  What is instance override?
+
+  → It replaces a requested type only at a specific hierarchy
+    instance/path.
+
+
+  Why must classes be registered?
+
+  → So the UVM factory knows about the classes and can use
+    them for factory-based creation and overrides.
+
+
+  Why must override happen before create()?
+
+  → The factory applies the override when the create() call
+    occurs.
+
+
+  ============================================================
+  27. KEY POINT
+  ============================================================
+
+  UVM FACTORY
+      ↓
+  Central mechanism for factory-based creation
+      ↓
+  type_id::create()
+      ↓
+  Factory can apply override
+      ↓
+  TYPE OVERRIDE
+      ↓
+  driver → error_driver
+
+  In your code:
+
+      driver_h =
+          driver::type_id::create("driver_h", this);
+
+  but because of:
+
+      set_type_override_by_type(
+          driver::get_type(),
+          error_driver::get_type()
+      );
+
+  the factory creates:
+
+      error_driver
+
+  while:
+
+      driver_h
+
+  remains a driver handle.
+
+
+  ============================================================
+*/
