@@ -1,0 +1,577 @@
+/*
+  ============================================================
+                 UVM VERBOSITY, SEVERITY & REPORTING
+  ============================================================
+
+  UVM provides a reporting mechanism to display messages
+  during simulation.
+
+  Two important concepts in UVM reporting are:
+
+    1. VERBOSITY
+    2. SEVERITY
+
+  These are different concepts.
+
+  VERBOSITY
+  → Controls how much informational output is displayed.
+
+  SEVERITY
+  → Indicates how serious the message is.
+
+
+  ============================================================
+                       UVM VERBOSITY
+  ============================================================
+
+  1. BASIC SYNTAX
+  ------------------------------------------------------------
+
+  `uvm_info(ID, MESSAGE, VERBOSITY)
+
+  Example:
+
+    `uvm_info(get_type_name(),
+              "Inside build phase of test",
+              UVM_MEDIUM)
+
+
+  2. WHY VERBOSITY IS USED
+  ------------------------------------------------------------
+
+  A UVM testbench can generate a large number of messages.
+
+  Verbosity allows us to control how much information is
+  printed during simulation.
+
+  We can:
+
+    - Show only important messages.
+    - Show normal information.
+    - Show detailed debugging information.
+
+
+  3. UVM VERBOSITY LEVELS
+  ------------------------------------------------------------
+
+  UVM_LOW
+
+    Used for important and less detailed information.
+
+  UVM_MEDIUM
+
+    Used for normal informational messages.
+
+    This is commonly used for general testbench messages.
+
+  UVM_HIGH
+
+    Used for more detailed information.
+
+  UVM_FULL
+
+    Used for very detailed information.
+
+  UVM_DEBUG
+
+    Used for detailed debugging information.
+
+
+  4. VERBOSITY ORDER
+  ------------------------------------------------------------
+
+    UVM_LOW
+       ↓
+    UVM_MEDIUM
+       ↓
+    UVM_HIGH
+       ↓
+    UVM_FULL
+       ↓
+    UVM_DEBUG
+
+  Higher verbosity means more detailed information can
+  be displayed.
+
+
+  5. MESSAGE VERBOSITY VS SIMULATION VERBOSITY
+  ------------------------------------------------------------
+
+  The verbosity specified in `uvm_info() tells UVM how
+  detailed that particular message is.
+
+  The simulation verbosity determines which messages are
+  displayed.
+
+  Example:
+
+    `uvm_info(get_type_name(), "Low message", UVM_LOW)
+    `uvm_info(get_type_name(), "Medium message", UVM_MEDIUM)
+    `uvm_info(get_type_name(), "High message", UVM_HIGH)
+
+  If the simulation verbosity is set to UVM_MEDIUM:
+
+    UVM_LOW
+        → Displayed
+
+    UVM_MEDIUM
+        → Displayed
+
+    UVM_HIGH
+        → Not displayed
+
+
+  6. SETTING VERBOSITY
+  ------------------------------------------------------------
+
+  Verbosity can be controlled when starting the simulation.
+
+  Example:
+
+    +UVM_VERBOSITY=UVM_HIGH
+
+  This allows messages up to UVM_HIGH to be displayed.
+
+  Therefore:
+
+    UVM_LOW
+    UVM_MEDIUM
+    UVM_HIGH
+
+  messages can be displayed.
+
+
+  7. IMPORTANT POINT
+  ------------------------------------------------------------
+
+  The verbosity specified in `uvm_info() is the verbosity
+  level of that particular message.
+
+  The simulation verbosity determines the maximum verbosity
+  level that will be displayed.
+
+
+  8. SIMPLE EXAMPLE
+  ------------------------------------------------------------
+
+    `uvm_info("TEST", "Build phase", UVM_LOW)
+    `uvm_info("TEST", "Connect phase", UVM_MEDIUM)
+    `uvm_info("TEST", "Debug information", UVM_HIGH)
+
+  If:
+
+    +UVM_VERBOSITY=UVM_MEDIUM
+
+  Then:
+
+    Build phase
+    Connect phase
+
+  are displayed, while the HIGH message is not displayed.
+
+
+  ============================================================
+                       UVM SEVERITY
+  ============================================================
+
+  UVM severity indicates how serious a message is.
+
+  UVM provides four main severity levels:
+
+    UVM_INFO
+    UVM_WARNING
+    UVM_ERROR
+    UVM_FATAL
+
+
+  9. UVM_INFO
+  ------------------------------------------------------------
+
+  UVM_INFO is used for normal informational messages.
+
+  Example:
+
+    `uvm_info(get_type_name(),
+              "Build phase started",
+              UVM_MEDIUM)
+
+  UVM_INFO is normally used together with a verbosity level
+  because the amount of informational output can be controlled
+  through verbosity.
+
+
+  10. UVM_WARNING
+  ------------------------------------------------------------
+
+  UVM_WARNING indicates a condition that may need attention,
+  but it does not normally stop the simulation.
+
+  Example:
+
+    `uvm_warning("TEST",
+                 "Configuration value is not set")
+
+
+  11. UVM_ERROR
+  ------------------------------------------------------------
+
+  UVM_ERROR indicates a problem that should be investigated.
+
+  The simulation normally continues after an error, depending
+  on the UVM report configuration.
+
+  Example:
+
+    `uvm_error("TEST",
+               "Expected transaction was not received")
+
+
+  12. UVM_FATAL
+  ------------------------------------------------------------
+
+  UVM_FATAL indicates a critical error from which simulation
+  cannot continue.
+
+  It terminates the simulation.
+
+  Example:
+
+    `uvm_fatal("TEST",
+               "Required interface was not found")
+
+
+  ============================================================
+               UVM VERBOSITY VS UVM SEVERITY
+  ============================================================
+
+  These two concepts are DIFFERENT.
+
+  VERBOSITY
+  → Controls how much information is displayed.
+
+  SEVERITY
+  → Indicates how serious the message is.
+
+
+  Example:
+
+    `uvm_info(...)
+          ↓
+      Information
+          ↓
+      Verbosity controls
+      how much information
+      is displayed.
+
+
+    `uvm_error(...)
+          ↓
+        Error
+          ↓
+      Indicates a problem.
+
+
+  A message can therefore have:
+
+    SEVERITY  → UVM_INFO
+    VERBOSITY → UVM_HIGH
+
+  These are independent concepts.
+
+  Verbosity answers:
+
+    "How much information should I display?"
+
+  Severity answers:
+
+    "How serious is this message?"
+
+
+  ============================================================
+              UVM SEVERITY VS SYSTEMVERILOG
+                   REPORTING TASKS
+  ============================================================
+
+  SystemVerilog provides system tasks such as:
+
+    $display
+    $warning
+    $error
+    $fatal
+
+  UVM provides its own reporting mechanism:
+
+    `uvm_info
+    `uvm_warning
+    `uvm_error
+    `uvm_fatal
+
+
+  13. BASIC COMPARISON
+  ------------------------------------------------------------
+
+  SystemVerilog              UVM
+
+  $display()              →   `uvm_info()
+
+  $warning()              →   `uvm_warning()
+
+  $error()                →   `uvm_error()
+
+  $fatal()                →   `uvm_fatal()
+
+
+  14. IMPORTANT DIFFERENCE
+  ------------------------------------------------------------
+
+  SystemVerilog reporting tasks directly generate messages
+  according to the simulator's SystemVerilog reporting
+  behavior.
+
+  UVM reporting provides a centralized reporting mechanism
+  that can be configured and controlled by the UVM testbench.
+
+  UVM reports also provide information such as:
+
+    - Severity
+    - ID
+    - Message
+    - Component/context
+    - Simulation time
+
+
+  ============================================================
+                       GET_TYPE_NAME()
+  ============================================================
+
+  15. get_type_name()
+  ------------------------------------------------------------
+
+  Example:
+
+    `uvm_info(get_type_name(),
+              "Inside build phase",
+              UVM_MEDIUM)
+
+  get_type_name() returns the type name of the current UVM
+  component.
+
+  For example:
+
+    test    → "test"
+    env     → "env"
+    agent   → "agent"
+    driver  → "driver"
+    monitor → "monitor"
+
+  This avoids manually writing a separate ID for every
+  component.
+
+
+  ============================================================
+                          GET_NAME()
+  ============================================================
+
+  16. get_name()
+  ------------------------------------------------------------
+
+  get_name() returns the INSTANCE NAME of the component.
+
+  Example:
+
+    env_h = env::type_id::create("env_h", this);
+
+  Here:
+
+    get_name() → "env_h"
+
+  Therefore:
+
+    get_type_name() → "env"
+    get_name()      → "env_h"
+
+
+  ============================================================
+                       GET_FULL_NAME()
+  ============================================================
+
+  17. get_full_name()
+  ------------------------------------------------------------
+
+  get_full_name() returns the COMPLETE HIERARCHICAL NAME
+  of the component.
+
+  It includes the names of the parent components from the
+  top of the UVM hierarchy down to the current component.
+
+  Example hierarchy:
+
+    uvm_test_top
+        ↓
+      env_h
+        ↓
+      agent_h
+        ↓
+      driver_h
+
+  For driver_h:
+
+    get_name()
+        → "driver_h"
+
+    get_full_name()
+        → "uvm_test_top.env_h.agent_h.driver_h"
+
+
+  18. COMPARISON
+  ------------------------------------------------------------
+
+  Component:
+
+    driver_h
+
+  get_type_name()
+        → "driver"
+
+  get_name()
+        → "driver_h"
+
+  get_full_name()
+        → "uvm_test_top.env_h.agent_h.driver_h"
+
+
+  19. IMPORTANT DIFFERENCE
+  ------------------------------------------------------------
+
+  get_type_name()
+      → Tells WHAT TYPE / CLASS the component is.
+
+  get_name()
+      → Tells the INSTANCE NAME of the component.
+
+  get_full_name()
+      → Tells WHERE the component is located in the
+        UVM hierarchy.
+
+
+  20. EXAMPLE WITH UVM_INFO
+  ------------------------------------------------------------
+
+    `uvm_info(get_type_name(),
+              "Inside driver",
+              UVM_MEDIUM)
+
+    `uvm_info(get_name(),
+              "Inside driver",
+              UVM_MEDIUM)
+
+    `uvm_info(get_full_name(),
+              "Inside driver",
+              UVM_MEDIUM)
+
+  These can be used to identify the component that generated
+  the message.
+
+
+  ============================================================
+                     WHY USE VERBOSITY?
+  ============================================================
+
+  21. DEBUGGING WITH VERBOSITY
+  ------------------------------------------------------------
+
+  During normal simulation, we may want to see only important
+  messages.
+
+  During debugging, we may want to see much more information.
+
+  Instead of removing messages from the code, we can assign
+  different verbosity levels to them.
+
+  Example:
+
+    `uvm_info(get_type_name(),
+              "Important information",
+              UVM_LOW)
+
+    `uvm_info(get_type_name(),
+              "Normal information",
+              UVM_MEDIUM)
+
+    `uvm_info(get_type_name(),
+              "Detailed debug information",
+              UVM_HIGH)
+
+
+  With:
+
+    +UVM_VERBOSITY=UVM_LOW
+
+  Only the LOW-level message is displayed.
+
+  With:
+
+    +UVM_VERBOSITY=UVM_HIGH
+
+  LOW, MEDIUM, and HIGH messages can be displayed.
+
+
+  ============================================================
+                         KEY POINTS
+  ============================================================
+
+  22. INTERVIEW POINTS
+  ------------------------------------------------------------
+
+  1. UVM verbosity controls the amount of informational output.
+
+  2. UVM severity indicates how serious a message is.
+
+  3. Verbosity and severity are different concepts.
+
+  4. UVM verbosity levels are:
+
+       UVM_LOW
+       UVM_MEDIUM
+       UVM_HIGH
+       UVM_FULL
+       UVM_DEBUG
+
+  5. UVM severity levels are:
+
+       UVM_INFO
+       UVM_WARNING
+       UVM_ERROR
+       UVM_FATAL
+
+  6. `uvm_info() uses a verbosity level.
+
+  7. `uvm_warning(), `uvm_error(), and `uvm_fatal() represent
+     different severity levels.
+
+  8. Higher verbosity means more detailed information can
+     be displayed.
+
+  9. The simulation verbosity determines which `uvm_info()
+     messages are displayed.
+
+  10. `uvm_error does not mean HIGH verbosity.
+      Severity and verbosity are independent.
+
+  11. UVM reporting provides a centralized and configurable
+      reporting mechanism.
+
+  12. get_type_name() can be used as the ID to automatically
+      identify the current component.
+
+  13. get_name() returns the instance name of the component.
+
+  14. get_full_name() returns the complete hierarchical name
+      of the component.
+
+  15. SystemVerilog uses reporting tasks such as $warning,
+      $error, and $fatal, while UVM provides its own reporting
+      mechanism through UVM reporting macros.
+
+  ============================================================
+*/
